@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import type { Conversation } from "@/lib/types/messaging";
+import { applyConfirmedConversation } from "@/lib/inbox/confirmed-conversation-cache";
 
 interface CloseArgs {
   conversation_id: string;
@@ -21,11 +22,14 @@ export function useCloseConversation() {
     onError: (err, args) => {
       qc.invalidateQueries({ queryKey: ["conversations"] });
       qc.invalidateQueries({ queryKey: ["conversation", args.conversation_id] });
+      qc.invalidateQueries({ queryKey: ["conversation-counts"] });
       showApiError(err);
     },
-    onSuccess: (_data, args) => {
+    onSuccess: async (data, args) => {
+      await applyConfirmedConversation(qc, data.data);
       qc.invalidateQueries({ queryKey: ["conversations"] });
       qc.invalidateQueries({ queryKey: ["conversation", args.conversation_id] });
+      qc.invalidateQueries({ queryKey: ["conversation-counts"] });
     },
   });
 }
@@ -50,9 +54,11 @@ export function useArchiveConversation() {
     // entre a leitura e este clique) a tela precisa reler — é o estado do
     // servidor que vale, não o que estava no cache.
     onError: showApiError,
+    onSuccess: (data) => applyConfirmedConversation(qc, data.data),
     onSettled: (_data, _error, args) => {
       qc.invalidateQueries({ queryKey: ["conversations"] });
       qc.invalidateQueries({ queryKey: ["conversation", args.conversation_id] });
+      qc.invalidateQueries({ queryKey: ["conversation-counts"] });
     },
   });
 }
@@ -66,9 +72,11 @@ export function useReopenConversation() {
       { status: "open", expected_revision: args.expected_revision },
     ),
     onError: showApiError,
+    onSuccess: (data) => applyConfirmedConversation(qc, data.data),
     onSettled: (_data, _error, args) => {
       qc.invalidateQueries({ queryKey: ["conversations"] });
       qc.invalidateQueries({ queryKey: ["conversation", args.conversation_id] });
+      qc.invalidateQueries({ queryKey: ["conversation-counts"] });
     },
   });
 }

@@ -124,7 +124,18 @@ vi.mock("@/components/inbox/ConversationList", () => ({
     </>
   ),
 }));
-vi.mock("@/components/inbox/InboxFilters", () => ({ InboxFilters: () => null }));
+vi.mock("@/components/inbox/InboxFilters", () => ({
+  InboxFilters: ({ value, onChange }: {
+    value: { tab: string; search: string; onlyUnread: boolean };
+    onChange: (value: { tab: string; search: string; onlyUnread: boolean }) => void;
+  }) => (
+    <>
+      <output data-testid="aba-atual">{value.tab}</output>
+      <button onClick={() => onChange({ ...value, tab: "mine" })}>Minhas conversas</button>
+      <button onClick={() => onChange({ ...value, tab: "closed" })}>Conversas fechadas</button>
+    </>
+  ),
+}));
 vi.mock("@/components/inbox/ChatThread", () => ({ ChatThread: () => null }));
 vi.mock("@/components/inbox/Composer", () => ({ Composer: () => null }));
 vi.mock("@/components/inbox/ConversationHeader", () => ({ ConversationHeader: () => null }));
@@ -214,5 +225,26 @@ describe("deep-link para conversa fora do filtro", () => {
       </QueryClientProvider>,
     );
     await waitFor(() => expect(screen.queryByTestId("painel")).toBeNull());
+  });
+
+  it("troca a aba sem esperar navegação RSC e preserva seleção, parâmetros e histórico", async () => {
+    window.history.replaceState(null, "", `/app/inbox?filter=all&id=${CONVERSA}&origem=atalho#mensagens`);
+    const entradas = window.history.length;
+    montar();
+
+    // O router do dublê nunca resolve navegação. A nova lista precisa sair
+    // mesmo assim: nenhuma resposta de Server Component destrava este clique.
+    fireEvent.click(screen.getByRole("button", { name: "Minhas conversas" }));
+    expect(screen.getByTestId("aba-atual")).toHaveTextContent("mine");
+    expect(window.location.search).toBe(`?filter=mine&id=${CONVERSA}&origem=atalho`);
+    expect(window.location.hash).toBe("#mensagens");
+    expect(window.history.length).toBe(entradas);
+    await waitFor(() => expect(get.mock.calls.some(([url]) =>
+      url?.includes("assigned_to=me") && url.includes("exclude_finished=true"),
+    )).toBe(true));
+
+    fireEvent.click(screen.getByRole("button", { name: "Conversas fechadas" }));
+    expect(screen.getByTestId("aba-atual")).toHaveTextContent("closed");
+    await waitFor(() => expect(get.mock.calls.some(([url]) => url?.includes("status=closed"))).toBe(true));
   });
 });

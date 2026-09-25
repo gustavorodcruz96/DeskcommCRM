@@ -20,6 +20,7 @@ import type { AuthUser, Role } from "@/lib/auth/types";
 
 vi.mock("@/lib/auth/server", () => ({
   loadAuthUser: vi.fn(),
+  loadAuthContext: async () => ({ supabase: await createClient(), authUser: await loadAuthUser() }),
   resolveActiveOrg: vi.fn(),
   // Sessão sem dívida de MFA: estes testes medem RBAC, não o gate de
   // segundo fator (que tem suíte própria em require-role-mfa.test.ts).

@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/hooks/i18n/useT";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { fonteDeTemplates } from "@/lib/channels/templates-fonte";
 import { estadoDaJanela, formatarDecorrido } from "@/lib/channels/janela";
@@ -134,7 +134,6 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
   const supportReadonly = user.support?.access_mode === "support_readonly";
   const orgId = activeOrg?.orgId ?? null;
 
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tab = parseFilterParam(searchParams.get("filter"));
@@ -149,14 +148,18 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
   const setFilterValue = useCallback(
     (next: InboxFiltersValue) => {
       if (next.tab !== tab) {
-        const params = new URLSearchParams(searchParams);
+        // Filtro é estado do cliente: não precisa remontar Server Components
+        // nem esperar autenticação/rede antes de pedir a lista da nova aba.
+        // A History API do Next sincroniza useSearchParams e mantém Voltar.
+        // Ler a URL atual também preserva uma seleção feita no mesmo instante.
+        const params = new URLSearchParams(window.location.search);
         params.set("filter", next.tab);
-        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+        window.history.replaceState(null, "", `${pathname}?${params.toString()}${window.location.hash}`);
       }
       const { tab: _t, ...rest } = next;
       setAux(rest);
     },
-    [tab, searchParams, router, pathname],
+    [tab, pathname],
   );
 
   // Desliga só os AUXILIARES e mantém a aba: a aba é onde a pessoa está, e

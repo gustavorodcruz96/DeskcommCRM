@@ -7,10 +7,9 @@ import { type NextRequest } from "next/server";
 
 import { ApiError } from "@/lib/api/types";
 import { fail, ok } from "@/lib/api/wrappers";
-import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { loadAuthContext, resolveActiveOrg } from "@/lib/auth/server";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { listMessagesQuerySchema } from "@/lib/schemas";
-import { createClient } from "@/lib/supabase/server";
 
 import { listMessagesHandler } from "@/app/api/v1/messages/_handler";
 
@@ -23,17 +22,11 @@ interface RouteCtx {
 export async function GET(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   const requestId = randomUUID();
   const { id: conversationId } = await ctx.params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-    error: authErr,
-  } = await supabase.auth.getUser();
-  if (authErr || !user) {
+  const { supabase, authUser } = await loadAuthContext();
+  if (!authUser) {
     return fail("unauthenticated", "Auth required.", 401, { requestId });
   }
-
-  const authUser = await loadAuthUser();
+  const user = authUser;
   const t = (texto: string) => traduzir(texto, authUser?.idioma ?? "pt-BR");
   const activeOrg = authUser ? await resolveActiveOrg(authUser) : null;
   if (!activeOrg) {

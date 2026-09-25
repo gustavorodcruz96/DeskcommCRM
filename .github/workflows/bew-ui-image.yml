@@ -20,18 +20,18 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           load: true
-          tags: deskcomm-bew-ui:1.48.0-r11
-          build-args: APP_VERSION=1.48.0-bew-ui.11
+          tags: deskcomm-bew-ui:1.48.0-r12
+          build-args: APP_VERSION=1.48.0-bew-ui.12
       - uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.worker
           platforms: linux/amd64
           load: true
-          tags: deskcomm-bew-worker:1.48.0-r11
-          build-args: APP_VERSION=1.48.0-bew-ui.11
+          tags: deskcomm-bew-worker:1.48.0-r12
+          build-args: APP_VERSION=1.48.0-bew-ui.12
       - name: Export app and worker images
-        run: docker save deskcomm-bew-ui:1.48.0-r11 deskcomm-bew-worker:1.48.0-r11 | gzip -1 > /tmp/bew-ui-image.tar.gz
+        run: docker save deskcomm-bew-ui:1.48.0-r12 deskcomm-bew-worker:1.48.0-r12 | gzip -1 > /tmp/bew-ui-image.tar.gz
       - uses: actions/upload-artifact@v4
         with:
           name: bew-ui-image

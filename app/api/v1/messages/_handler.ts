@@ -1102,6 +1102,10 @@ export async function sendMessageHandler(
     }
   }
 
+  // O recibo da mensagem já foi persistido. Estes efeitos descrevem esse
+  // recibo e não dependem uns dos outros; não somar uma ida ao banco por efeito.
+  // O evento continua DEPOIS de todos, para o consumidor observar os carimbos.
+  const postSendEffects: PromiseLike<unknown>[] = [];
   if (!ctx.approvedReply) {
   const conversationUpdate: {
     last_outbound_at: string;
@@ -1134,7 +1138,9 @@ export async function sendMessageHandler(
     if (silenceUntil) conversationUpdate.bot_silenced_until = silenceUntil;
   }
 
-  await supabase.from("conversations").update(conversationUpdate).eq("id", c.id);
+  postSendEffects.push(
+    supabase.from("conversations").update(conversationUpdate).eq("id", c.id),
+  );
 
   // Envio pelo CRM não passa por `fn_mark_conversation_message` — carimba o
   // contato aqui para /app/contacts refletir a resposta (migration 0162).
@@ -1146,11 +1152,13 @@ export async function sendMessageHandler(
   // única coisa entre esta escrita e outro tenant seria a confiança em
   // `c.contact_id` — e o anti-pattern nº 10 do CLAUDE.md existe justamente
   // porque essa confiança já falhou antes.
-  await supabase
-    .from("contacts")
-    .update({ last_activity_at: now })
-    .eq("id", c.contact_id)
-    .eq("organization_id", c.organization_id);
+  postSendEffects.push(
+    supabase
+      .from("contacts")
+      .update({ last_activity_at: now })
+      .eq("id", c.contact_id)
+      .eq("organization_id", c.organization_id),
+  );
 
   }
   const a = actorAuditPayload(ctx.actor);
@@ -1161,16 +1169,25 @@ export async function sendMessageHandler(
   // identidade provada: pô-la na coluna de autor faria o log dizer que ela
   // agiu, quando ninguém a autenticou nesta chamada.
   const emNomeDe = ctx.onBehalfOf ? { on_behalf_of_user_id: ctx.onBehalfOf.userId } : {};
-  await audit({
-    action: "message.sent",
-    actorUserId: a.actorUserId,
-    actorApiTokenId: ctx.onBehalfOf ? apiTokenIdDoActor(ctx.actor) : undefined,
-    organizationId: c.organization_id,
-    resourceType: "message",
-    resourceId: message.id,
-    requestId: ctx.requestId,
-    metadata: { ...a.metadataActor, ...emNomeDe, status: message.status, type: message.type },
-  });
+  postSendEffects.push(
+    audit({
+      action: "message.sent",
+      actorUserId: a.actorUserId,
+      actorApiTokenId: ctx.onBehalfOf ? apiTokenIdDoActor(ctx.actor) : undefined,
+      organizationId: c.organization_id,
+      resourceType: "message",
+      resourceId: message.id,
+      requestId: ctx.requestId,
+      metadata: { ...a.metadataActor, ...emNomeDe, status: message.status, type: message.type },
+    }),
+  );
+
+  // allSettled também espera os demais efeitos quando um transporte rejeita.
+  // Não deixar gravações soltas após devolver erro nem emitir antes do estado.
+  const postSendResults = await Promise.allSettled(postSendEffects);
+  for (const result of postSendResults) {
+    if (result.status === "rejected") throw result.reason;
+  }
 
   await supabase
     .rpc("emit_event", {

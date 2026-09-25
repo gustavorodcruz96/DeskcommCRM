@@ -119,7 +119,19 @@ export function ehSessaoAusente(error: { name?: string } | null | undefined): bo
   return error?.name === "AuthSessionMissingError";
 }
 
-export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
+export interface AuthContext {
+  /** O mesmo cliente de sessão que validou a identidade; mantém a RLS. */
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  authUser: AuthUser | null;
+}
+
+/**
+ * Contexto explícito para Route Handlers: valida a sessão uma vez e devolve
+ * seu cliente junto da identidade. Não guarda permissão entre requisições.
+ * React.cache só deduplica durante render; chamar getUser na rota e depois
+ * loadAuthUser pagava duas validações HTTP para a mesma leitura do Inbox.
+ */
+export async function loadAuthContext(): Promise<AuthContext> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -162,14 +174,14 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
       message: error.message,
     });
   }
-  if (!user) return null;
+  if (error || !user) return { supabase, authUser: null };
 
   // Platform admin e Org memberships consultados em paralelo no Supabase:
   // elimina round-trip sequencial a cada requisição.
   // ⚠️ `ORDER BY` NÃO É ENFEITE AQUI: esta lista decide QUAL ORGANIZAÇÃO FICA
   // ATIVA para quem não tem o cookie `active_org` — `resolveActiveOrg` pega
   // `organizations[0]`. Sem ordenação, "a primeira" é o que o Postgres devolver.
-  const [{ data: paRow, error: paErro }, { data: rawMemberships, error: membErro }] =
+  const [{ data: paRow, error: paErro }, { data: rawMemberships, error: membErro }, support] =
     await Promise.all([
       supabase
         .from("platform_admins")
@@ -193,6 +205,9 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
         .is("revoked_at", null)
         .order("accepted_at", { ascending: true, nullsFirst: true })
         .order("organization_id", { ascending: true }),
+      // A RPC depende só da sessão já validada, não das memberships. Continua
+      // falhando fechada, mas não acrescenta uma terceira espera sequencial.
+      readSupportContext(supabase),
     ]);
 
   /**
@@ -246,7 +261,6 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
     };
   });
 
-  const support = await readSupportContext(supabase);
   const fullName = (user.user_metadata?.full_name as string | undefined) ?? null;
   const avatarUrl = (user.user_metadata?.avatar_url as string | undefined) ?? null;
   const locale = (user.user_metadata?.locale as string | undefined) ?? null;
@@ -262,7 +276,7 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
   );
   const timezone = (user.user_metadata?.timezone as string | undefined) ?? null;
 
-  return {
+  const authUser: AuthUser = {
     id: user.id,
     email: user.email ?? "",
     full_name: fullName,
@@ -274,7 +288,12 @@ export const loadAuthUser = cache(async (): Promise<AuthUser | null> => {
     organizations: memberships,
     support,
   };
-});
+  return { supabase, authUser };
+}
+
+export const loadAuthUser = cache(async (): Promise<AuthUser | null> =>
+  (await loadAuthContext()).authUser,
+);
 
 /**
  * Resolves the active organization for the current request.
