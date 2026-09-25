@@ -87,16 +87,16 @@ describe("o nome da marca na barra lateral", () => {
     // seguinte — se a barra nunca mostrasse nome nenhum, os dois passariam.
     contexto = { user: usuario, activeOrg: org };
     renderSidebar({ collapsed: false });
-    expect(screen.getByText("Sistema do Revendedor")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Sistema do Revendedor" })).toBeTruthy();
   });
 
   it("com marca da organização, o nome dela SUBSTITUI o da instalação", () => {
     contexto = { user: usuario, activeOrg: { ...org, marca: { nome: "Loja da Ana" } } };
     renderSidebar({ collapsed: false });
-    expect(screen.getByText("Loja da Ana")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Loja da Ana" })).toBeTruthy();
     // A ausência importa tanto quanto a presença: uma barra que mostrasse os
     // dois nomes passaria na asserção de cima e estaria errada.
-    expect(screen.queryByText("Sistema do Revendedor")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Sistema do Revendedor" })).toBeNull();
   });
 
   it("recolhida, a inicial acompanha o nome que a barra mostra", () => {
@@ -141,7 +141,7 @@ describe("o logo na barra lateral", () => {
 
     expect(imagem().getAttribute("src")).toBe(LOGO_DA_INSTALACAO);
     // O cabeçalho revisado reserva espaço para símbolo e nome lado a lado.
-    expect(screen.getByText("Sistema do Revendedor")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Sistema do Revendedor" })).toBeTruthy();
   });
 
   it("o logo da organização SUBSTITUI o da instalação", () => {
@@ -178,6 +178,6 @@ describe("o logo na barra lateral", () => {
     renderSidebar({ collapsed: false });
 
     expect(screen.queryByRole("img")).toBeNull();
-    expect(screen.getByText("Sistema do Revendedor")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Sistema do Revendedor" })).toBeTruthy();
   });
 });

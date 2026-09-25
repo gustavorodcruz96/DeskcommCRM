@@ -3005,3 +3005,10 @@ Port do #1130 (@vgamkt), PR 3 de 4. Spec: `tests/e2e/fluxo-de-atendimento.spec.t
 - Busca somente nas mensagens carregadas: `chat-thread-ancoragem-instantanea.test.tsx` cobre correspondências, ausência, ocultadas e revogadas. Não equivale a busca histórica no servidor.
 - Acabamento BEW: renderização isolada de componentes nativos com dados sintéticos em 1440×900, 1280×800 e 390×844; sem overflow horizontal e campo de mensagem visível. Artefatos na pasta de implantação `deployment/redesign-v1.48/visual` do projeto pai.
 - Limite: a sessão autenticada da instalação não foi validada visualmente; a criação da sessão Cloudflare Browser Run falhou por permissão. A renderização isolada e os testes de componentes não substituem a prova de jornada autenticada nem envio real.
+
+### Fidelidade ao preview BEW — 25/09/2026
+
+- A navegação principal mostra os atalhos de atendimento; Ferramentas conserva os grupos e hubs autorizados pelo registro. Busca global fica na barra lateral.
+- Ações secundárias da conversa e nota interna ficam em menus acessíveis. Testes exercitam abertura, encerramento com confirmação/revisão, arquivamento, chamada e nota sem envio ao cliente.
+- Padrão claro sem preferência salva, respeitando escolhas explícitas de escuro/sistema. Cobertura em `lib/theme.test.tsx`.
+- Medidas Chromium em 1440×900, 1280×800 e 390×844: conversa sem overflow horizontal; cabeçalho compacto e composer visível. Evidências de implantação no projeto pai em `deployment/redesign-v1.48-r8/visual`.

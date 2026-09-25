@@ -9,7 +9,8 @@ import {
   type ClipboardEvent,
   type KeyboardEvent,
 } from "react";
-import { PaperPlaneTilt } from "@/lib/ui/icons";
+import { PaperPlaneTilt, DotsThree, Sparkle } from "@/lib/ui/icons";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { AttachMenu } from "@/components/inbox/composer/AttachMenu";
 import { AttachmentPreviewDialog } from "@/components/inbox/composer/AttachmentPreviewDialog";
@@ -125,6 +126,8 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
   const [menuDismissed, setMenuDismissed] = useState(false);
+  const [opcoesAbertas, setOpcoesAbertas] = useState(false);
+  const [assistenciaAberta, setAssistenciaAberta] = useState(false);
   const [mode, setMode] = useState<"reply" | "note">(initialMode);
   useEffect(() => {
     onDraftChange?.(text, mode);
@@ -275,8 +278,9 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           "crm-composer relative border-t border-border bg-background px-3 py-2",
           mode === "note" && "border-warning/40 bg-warning-bg",
         )}
+        data-message-mode={mode}
       >
-        {mode === "reply" && (
+        {mode === "reply" && assistenciaAberta && (
           <ReplyReviewPanel conversationId={conversationId} disabled={isDisabled} />
         )}
         <TemplateMenu
@@ -308,32 +312,15 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
             </p>
           </div>
         )}
-        <div className="mb-1.5 flex gap-1">
-          <button
-            type="button"
-            onClick={() => setMode("reply")}
-            className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-              mode === "reply"
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-muted",
-            )}
-          >
-            {t("Responder")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("note")}
-            className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-              mode === "note"
-                ? "bg-warning text-warning-fg"
-                : "text-muted-foreground hover:bg-muted",
-            )}
-          >
-            {t("Nota interna")}
-          </button>
-        </div>
+        {mode === "note" && (
+          <div className="crm-note-state mb-2 flex items-center justify-between text-xs">
+            <strong>{t("Nota interna — só o time vê")}</strong>
+            <button type="button" onClick={() => setMode("reply")}>
+              {t("Voltar para mensagem")}
+            </button>
+          </div>
+        )}
+
         {/*
           A FAIXA DA CITAÇÃO — o que o atendente escolheu responder.
 
@@ -391,6 +378,73 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
               });
             }}
           />
+          <Popover open={opcoesAbertas} onOpenChange={setOpcoesAbertas}>
+            <PopoverTrigger asChild>
+              <Button type="button" size="icon" variant="ghost" aria-label={t("Mais opções")}>
+                <DotsThree size={20} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" side="top" className="crm-composer-menu w-64 p-3">
+              <div className="mb-1.5 flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("reply");
+                    setOpcoesAbertas(false);
+                  }}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                    mode === "reply"
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {t("Responder")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("note");
+                    setOpcoesAbertas(false);
+                  }}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                    mode === "note"
+                      ? "bg-warning text-warning-fg"
+                      : "text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {t("Nota interna")}
+                </button>
+              </div>{" "}
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => {
+                  setAssistenciaAberta((value) => !value);
+                  setOpcoesAbertas(false);
+                }}
+              >
+                <Sparkle size={16} />
+                {t("Assistência do agente")}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => {
+                  setMode("reply");
+                  setText((current) => current || "/");
+                  setMenuDismissed(false);
+                  setOpcoesAbertas(false);
+                  requestAnimationFrame(() => taRef.current?.focus());
+                }}
+              >
+                {t("Respostas rápidas")}
+              </Button>
+            </PopoverContent>
+          </Popover>
           <textarea
             ref={taRef}
             value={text}

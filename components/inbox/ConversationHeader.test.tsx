@@ -102,6 +102,7 @@ describe("ConversationHeader — chamada de voz na Inbox", () => {
     };
     render(<ConversationHeader conversation={atual} />);
 
+    await user.click(screen.getByRole("button", { name: "Mais ações da conversa" }));
     await user.click(screen.getByRole("button", { name: "Chamar" }));
     expect(startCall).toHaveBeenCalledWith("contato-1");
   });
@@ -128,6 +129,9 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
     const user = userEvent.setup();
     render(<ConversationHeader conversation={conversa("open")} />);
 
+    if (!screen.queryByRole("button", { name: "Fechar" })) {
+      await user.click(screen.getByRole("button", { name: "Mais ações da conversa" }));
+    }
     await user.click(screen.getByRole("button", { name: "Fechar" }));
 
     const dialogo = await screen.findByRole("alertdialog");
@@ -138,6 +142,9 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(closeMutate).not.toHaveBeenCalled();
 
+    if (!screen.queryByRole("button", { name: "Fechar" })) {
+      await user.click(screen.getByRole("button", { name: "Mais ações da conversa" }));
+    }
     await user.click(screen.getByRole("button", { name: "Fechar" }));
     const dialogo2 = await screen.findByRole("alertdialog");
     await user.click(within(dialogo2).getByRole("button", { name: "Fechar" }));
@@ -153,6 +160,7 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
     const user = userEvent.setup();
     render(<ConversationHeader conversation={conversa("open")} />);
 
+    await user.click(screen.getByRole("button", { name: "Mais ações da conversa" }));
     await user.click(screen.getByRole("button", { name: "Arquivar" }));
 
     const dialogo = await screen.findByRole("alertdialog");
@@ -176,6 +184,7 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
     const user = userEvent.setup();
     render(<ConversationHeader conversation={conversa("closed")} />);
 
+    await user.click(screen.getByRole("button", { name: "Mais ações da conversa" }));
     await user.click(screen.getByRole("button", { name: "Arquivar" }));
 
     const dialogo = await screen.findByRole("alertdialog");
@@ -201,7 +210,9 @@ describe("ConversationHeader — ficha e busca sob demanda", () => {
         buscaAberta={false}
       />,
     );
+    await user.click(screen.getByRole("button", { name: "Mais ações da conversa" }));
     await user.click(screen.getByRole("button", { name: "Ficha do contato" }));
+    await user.keyboard("{Escape}");
     expect(ficha).toHaveBeenCalledOnce();
     await user.click(screen.getByRole("button", { name: "Buscar nesta conversa" }));
     expect(buscar).toHaveBeenCalledOnce();
