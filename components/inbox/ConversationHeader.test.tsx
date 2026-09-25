@@ -210,9 +210,10 @@ describe("ConversationHeader — ficha e busca sob demanda", () => {
         buscaAberta={false}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "Mais ações da conversa" }));
-    await user.click(screen.getByRole("button", { name: "Ficha do contato" }));
-    await user.keyboard("{Escape}");
+    const abrirFicha = screen.getByRole("button", { name: "Dados do lead" });
+    expect(abrirFicha).toHaveTextContent("Dados do lead");
+    expect(abrirFicha.closest(".crm-conversation-menu")).toBeNull();
+    await user.click(abrirFicha);
     expect(ficha).toHaveBeenCalledOnce();
     await user.click(screen.getByRole("button", { name: "Buscar nesta conversa" }));
     expect(buscar).toHaveBeenCalledOnce();

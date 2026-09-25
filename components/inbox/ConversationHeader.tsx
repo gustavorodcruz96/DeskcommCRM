@@ -18,14 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { JanelaSelo } from "@/components/inbox/JanelaSelo";
 import { ChannelLogo } from "@/components/inbox/ChannelLogo";
-import {
-  Phone,
-  ArrowRight,
-  MagnifyingGlass,
-  IdentificationCard,
-  DotsThree,
-  Check,
-} from "@/lib/ui/icons";
+import { Phone, MagnifyingGlass, IdentificationCard, DotsThree, Check } from "@/lib/ui/icons";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useClaimConversation } from "@/hooks/inbox/useClaimConversation";
 import { useReleaseConversation } from "@/hooks/inbox/useReleaseConversation";
@@ -249,8 +242,27 @@ export function ConversationHeader({
           </div>
         </div>
       </div>
-      <div className="flex min-w-0 flex-col items-end gap-1">
+      <div className="crm-conversation-tools flex min-w-0 flex-col items-end gap-1">
         <div className="crm-conversation-actions flex items-center gap-1.5">
+          {onAbrirFicha ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="crm-lead-details"
+              onClick={onAbrirFicha}
+              aria-haspopup="dialog"
+            >
+              <IdentificationCard size={18} aria-hidden />
+              <span>{t("Dados do lead")}</span>
+            </Button>
+          ) : c?.id ? (
+            <Button asChild size="sm" variant="outline" className="crm-lead-details">
+              <Link href={`/app/contacts/${c.id}`}>
+                <IdentificationCard size={18} aria-hidden />
+                <span>{t("Dados do lead")}</span>
+              </Link>
+            </Button>
+          ) : null}
           {isOpen && !encerrada && (
             <Button
               size="sm"
@@ -333,16 +345,6 @@ export function ConversationHeader({
                   onClick={() => setConfirmFecharOpen(true)}
                 >
                   {t("Fechar")}
-                </Button>
-              )}
-              {onAbrirFicha && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={onAbrirFicha}
-                  aria-label={t("Ficha do contato")}
-                >
-                  <IdentificationCard size={18} />
                 </Button>
               )}
               {/* A chamada usa o telefone da ficha, mesmo quando o contato chegou por
@@ -440,14 +442,6 @@ export function ConversationHeader({
                   onClick={() => setConfirmArquivarOpen(true)}
                 >
                   {arquivar.isPending ? t("Arquivando...") : t("Arquivar")}
-                </Button>
-              )}
-              {c?.id && !onAbrirFicha && (
-                <Button asChild size="sm" variant="ghost">
-                  <Link href={`/app/contacts/${c.id}`} className="flex items-center gap-1">
-                    {t("Ver contato")}
-                    <ArrowRight size={12} weight="regular" aria-hidden />
-                  </Link>
                 </Button>
               )}
             </PopoverContent>

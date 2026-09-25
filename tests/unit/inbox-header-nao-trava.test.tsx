@@ -68,7 +68,7 @@ describe("header compacto do inbox", () => {
     for (const name of ["Transferir", "Fechar", "Arquivar", "Lembrar"]) {
       expect(screen.getByRole("button", { name })).toBeTruthy();
     }
-    expect(screen.getByRole("link", { name: "Ver contato" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Dados do lead" })).toHaveAttribute(
       "href",
       "/app/contacts/ct-1",
     );

@@ -3020,3 +3020,8 @@ Port do #1130 (@vgamkt), PR 3 de 4. Spec: `tests/e2e/fluxo-de-atendimento.spec.t
 - WhatsApp nos atalhos de Contatos e nos dois estados vazios do Inbox. Ícones regulares Bootstrap e panda sobre branco conferidos visualmente na publicação.
 - Indicador de navegação em links pendentes; leituras de papel e MFA concorrem por requisição, sem cache de autorização. `require-role-mfa` cobre concorrência, precedência de papel insuficiente e falha de MFA necessária.
 - O ensaio visual usa dados sintéticos. A validação autenticada de produção abre páginas e diálogos sem salvar registros ou enviar mensagens; não comprova tempo de gravação de todos os CRUDs.
+
+
+### BEW v1.48 r10 — dados do lead visíveis
+
+O botão `Dados do lead` fica no cabeçalho, fora de `Mais ações da conversa`; abre a mesma ficha e preserva a busca e as ações de atendimento. `ConversationHeader.test.tsx` cobre o acesso direto sem abrir o menu e sem disparar mutações. Verificação visual cobre os temas claro/escuro e largura móvel.
