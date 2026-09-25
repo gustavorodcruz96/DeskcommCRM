@@ -4,7 +4,7 @@ import { useT } from "@/hooks/i18n/useT";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { FileText, ImageSquare, Plus, UserCircle } from "@/lib/ui/icons";
+import { FileText, ImageSquare, Paperclip, UserCircle } from "@/lib/ui/icons";
 
 interface Props {
   disabled?: boolean;
@@ -36,7 +36,7 @@ export function AttachMenu({ disabled, onPick, onPickContact }: Props) {
             aria-label={t("Anexar")}
             disabled={disabled}
           >
-            <Plus size={18} weight="regular" aria-hidden />
+            <Paperclip size={18} weight="regular" aria-hidden />
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" side="top" className="w-52 p-1">
@@ -72,7 +72,13 @@ export function AttachMenu({ disabled, onPick, onPickContact }: Props) {
           popover ao fechar, e um input desmontado no meio do clique perde o
           file picker ("nada acontece"). Aqui os refs seguem válidos após o
           fechamento — o .click() síncrono no onClick preserva o user-gesture. */}
-      <input ref={mediaRef} type="file" accept="image/*,video/*" className="hidden" onChange={handle} />
+      <input
+        ref={mediaRef}
+        type="file"
+        accept="image/*,video/*"
+        className="hidden"
+        onChange={handle}
+      />
       <input
         ref={docRef}
         type="file"

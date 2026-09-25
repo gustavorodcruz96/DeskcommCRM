@@ -4,7 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
 import { Sidebar } from "@/components/shell/Sidebar";
-import { CLASSES_DE_COR, LogotipoDoProduto, SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
+import {
+  CLASSES_DE_COR,
+  LogotipoDoProduto,
+  SimboloDoProduto,
+} from "@/components/branding/MarcaDoProduto";
 import type { ActiveOrg, AuthUser } from "@/lib/auth/types";
 import { DEFAULT_APP_NAME, marcaEhADoProduto, type Branding } from "@/lib/branding";
 import { MarcaDaInstalacaoProvider } from "@/lib/branding/contexto";
@@ -43,10 +47,10 @@ vi.mock("@/hooks/auth/AuthProvider", () => ({ useAuth: () => contexto }));
 
 const PADRAO: Branding = { name: DEFAULT_APP_NAME, logoUrl: null, initial: "D" };
 
-function renderSidebar(marca: Branding, collapsed: boolean) {
+function renderSidebar(marca: Branding) {
   return render(
     <MarcaDaInstalacaoProvider marca={marca}>
-      <Sidebar collapsed={collapsed} />
+      <Sidebar />
     </MarcaDaInstalacaoProvider>,
   );
 }
@@ -74,37 +78,41 @@ describe("marcaEhADoProduto", () => {
 
 describe("o desenho na barra lateral", () => {
   it("aberta e sem marca própria, mostra o logotipo do produto (SVG, não <img>)", () => {
-    renderSidebar(PADRAO, false);
+    renderSidebar(PADRAO);
     const logotipo = screen.getByRole("img", { name: DEFAULT_APP_NAME });
     expect(logotipo.tagName.toLowerCase()).toBe("svg");
     // O e2e `marca-logo.spec.ts` lê "barra sem <img>" como "sem logo do
     // revendedor"; um <img> do produto aqui faria a spec medir a coisa errada.
     expect(document.querySelector("img")).toBeNull();
-    // Nem o nome em texto: o logotipo já o escreve.
-    expect(screen.queryByText(DEFAULT_APP_NAME)).toBeNull();
+    // Símbolo e nome permanecem visíveis na barra fixa.
+    expect(screen.getByRole("link", { name: DEFAULT_APP_NAME })).toHaveTextContent(
+      DEFAULT_APP_NAME,
+    );
   });
 
-  it("recolhida, mostra só o símbolo — e não a inicial em texto", () => {
-    renderSidebar(PADRAO, true);
+  it("barra fixa mostra o símbolo — e não a inicial em texto", () => {
+    renderSidebar(PADRAO);
     expect(screen.getByRole("img", { name: DEFAULT_APP_NAME }).tagName.toLowerCase()).toBe("svg");
     expect(screen.queryByText("D")).toBeNull();
   });
 
   it("com nome da instalação, segue em texto — o desenho do produto não vaza", () => {
-    renderSidebar({ name: "Sistema do Revendedor", logoUrl: null, initial: "S" }, false);
-    expect(screen.getByText("Sistema do Revendedor")).toBeTruthy();
+    renderSidebar({ name: "Sistema do Revendedor", logoUrl: null, initial: "S" });
+    expect(screen.getByRole("link", { name: "Sistema do Revendedor" })).toHaveTextContent(
+      "Sistemado Revendedor",
+    );
     expect(document.querySelector("svg[role=img]")).toBeNull();
   });
 
   it("com nome da ORGANIZAÇÃO sobre a instalação padrão, o nome dela vence o desenho", () => {
     contexto = { user: usuario, activeOrg: { ...org, marca: { nome: "Loja da Ana" } } };
-    renderSidebar(PADRAO, false);
-    expect(screen.getByText("Loja da Ana")).toBeTruthy();
+    renderSidebar(PADRAO);
+    expect(screen.getByRole("link", { name: "Loja da Ana" })).toHaveTextContent("Lojada Ana");
     expect(document.querySelector("svg[role=img]")).toBeNull();
   });
 
   it("com logo da instalação, a imagem vence o desenho", () => {
-    renderSidebar({ ...PADRAO, logoUrl: "https://cdn.exemplo.test/logo.png" }, false);
+    renderSidebar({ ...PADRAO, logoUrl: "https://cdn.exemplo.test/logo.png" });
     expect(screen.getByRole("img").tagName.toLowerCase()).toBe("img");
   });
 });
@@ -113,8 +121,14 @@ describe("as cores do desenho", () => {
   it("as classes do componente cobrem exatamente a paleta declarada, nos dois temas", () => {
     // O Tailwind só gera utilitário para hex LITERAL no fonte, então o
     // componente repete os valores. Isto é o que impede os dois de divergirem.
-    const nasClasses = Object.values(CLASSES_DE_COR).join(" ").match(/#[0-9a-f]{6}/g) ?? [];
-    const naPaleta = [...Object.values(CORES_DA_MARCA.claro), ...Object.values(CORES_DA_MARCA.escuro)];
+    const nasClasses =
+      Object.values(CLASSES_DE_COR)
+        .join(" ")
+        .match(/#[0-9a-f]{6}/g) ?? [];
+    const naPaleta = [
+      ...Object.values(CORES_DA_MARCA.claro),
+      ...Object.values(CORES_DA_MARCA.escuro),
+    ];
     expect([...nasClasses].sort()).toEqual([...naPaleta].sort());
   });
 

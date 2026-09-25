@@ -42,7 +42,7 @@ function bootstrapIcon(name: string, filled: string) {
 }
 
 export const Inbox = bootstrapIcon("whatsapp", "whatsapp");
-export const ListChecks = bootstrapIcon("list-check", "list-check");
+export const ListChecks = bootstrapIcon("check2-square", "check2-square");
 export const Plugs = bootstrapIcon("plug", "plug-fill");
 export const PlugsConnected = bootstrapIcon("plug-fill", "plug-fill");
 export const QrCode = bootstrapIcon("qr-code", "qr-code");
@@ -152,7 +152,7 @@ export const Key = bootstrapIcon("key", "key-fill");
 export const UserCircle = bootstrapIcon("person-circle", "person-circle");
 export const ClockCounterClockwise = bootstrapIcon("clock-history", "clock-history");
 export const IdentificationCard = bootstrapIcon("person-vcard", "person-vcard-fill");
-export const CalendarBlank = bootstrapIcon("calendar", "calendar-fill");
+export const CalendarBlank = bootstrapIcon("calendar4-week", "calendar4-week");
 export const CalendarDots = bootstrapIcon("calendar-week", "calendar-week-fill");
 export const CalendarPlus = bootstrapIcon("calendar-plus", "calendar-plus-fill");
 export const CalendarX = bootstrapIcon("calendar-x", "calendar-x-fill");
@@ -160,3 +160,8 @@ export const CalendarCheck = bootstrapIcon("calendar-check", "calendar-check-fil
 export const GoogleLogo = bootstrapIcon("google", "google");
 export const MapPin = bootstrapIcon("geo-alt", "geo-alt-fill");
 export const ArrowsOutSimple = bootstrapIcon("arrows-fullscreen", "arrows-fullscreen");
+
+export const LayoutSidebar = bootstrapIcon("layout-sidebar", "layout-sidebar");
+
+export const ListMagnifyingGlass = bootstrapIcon("search", "search");
+export const ArrowsLeftRight = bootstrapIcon("arrow-left-right", "arrow-left-right");

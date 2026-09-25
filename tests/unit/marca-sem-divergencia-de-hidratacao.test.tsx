@@ -123,8 +123,8 @@ afterEach(() => {
 
 describe("a marca não diverge entre o SSR e a hidratação", () => {
   it("a barra lateral renderiza IGUAL com e sem a marca no ambiente do navegador", () => {
-    const noServidor = renderComAmbiente(undefined, <Sidebar collapsed={false} />);
-    const noNavegador = renderComAmbiente(PUBLIC_ENV_DO_NAVEGADOR, <Sidebar collapsed={false} />);
+    const noServidor = renderComAmbiente(undefined, <Sidebar />);
+    const noNavegador = renderComAmbiente(PUBLIC_ENV_DO_NAVEGADOR, <Sidebar />);
 
     expect(
       noServidor,
@@ -150,7 +150,7 @@ describe("a marca não diverge entre o SSR e a hidratação", () => {
     // Sem este caso, os dois de cima passariam num componente que nunca mostra
     // logo nenhum — dois vazios são iguais. O que se afirma aqui é que a marca
     // do contexto ALCANÇA a tela: o `<img>` do banco está no HTML dos dois lados.
-    const noServidor = renderComAmbiente(undefined, <Sidebar collapsed={false} />);
+    const noServidor = renderComAmbiente(undefined, <Sidebar />);
 
     expect(noServidor).toContain(`src="${MARCA_DO_BANCO.logoUrl}"`);
     expect(noServidor).toContain(`alt="${MARCA_DO_BANCO.name}"`);
@@ -220,7 +220,9 @@ describe("catraca: `branding()` é server-only", () => {
     // Uma lista vazia faria a asserção principal passar sem medir nada — que é o
     // modo nº 1 de um gate ficar verde por engano.
     expect(varridos.length).toBeGreaterThan(500);
-    const clientes = varridos.filter((f) => /^["']use client["']/m.test(fs.readFileSync(f, "utf8")));
+    const clientes = varridos.filter((f) =>
+      /^["']use client["']/m.test(fs.readFileSync(f, "utf8")),
+    );
     expect(clientes.length).toBeGreaterThan(100);
   });
 
@@ -229,7 +231,9 @@ describe("catraca: `branding()` é server-only", () => {
     expect(semComentarios(`{/*\n  fala de branding() na prosa\n*/}\nconst x = 1;`)).not.toMatch(
       /\bbranding\(\)/,
     );
-    expect(semComentarios(`const nome = branding().name; // usa a marca`)).toMatch(/\bbranding\(\)/);
+    expect(semComentarios(`const nome = branding().name; // usa a marca`)).toMatch(
+      /\bbranding\(\)/,
+    );
   });
 
   it("os call sites REAIS de `branding()` continuam visíveis à varredura", () => {
@@ -247,7 +251,7 @@ describe("catraca: `branding()` é server-only", () => {
     expect(esperados.filter((e) => !vistos.includes(e))).toEqual([]);
   });
 
-  it("nenhum componente `\"use client\"` chama `branding()`", () => {
+  it('nenhum componente `"use client"` chama `branding()`', () => {
     const infratores = varridos.filter(
       (arquivo) =>
         /^["']use client["']/m.test(fs.readFileSync(arquivo, "utf8")) && chamaBranding(arquivo),

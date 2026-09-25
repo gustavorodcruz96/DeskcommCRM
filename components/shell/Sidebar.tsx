@@ -2,19 +2,11 @@
 import Link from "next/link";
 import { useT } from "@/hooks/i18n/useT";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import {
-  ArrowRight,
-  CaretDoubleLeft,
-  CaretDoubleRight,
-  CaretDown,
-  Gear,
-  ChartBar,
-} from "@/lib/ui/icons";
+import { useEffect, useState } from "react";
+import { ArrowRight, CaretDown, Gear } from "@/lib/ui/icons";
+import { NavigationPending } from "@/components/shell/NavigationPending";
 import { SearchTrigger } from "@/components/shell/SearchTrigger";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { toggleSidebar } from "@/app/actions/shell/toggleSidebar";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { ConnectionHealthDot } from "@/components/connections/ConnectionHealthDot";
 import { VersionFooter } from "@/components/shell/VersionFooter";
@@ -27,7 +19,6 @@ const CHAVE_GRUPOS_FECHADOS = "sidebar-grupos-fechados";
 
 interface SidebarContentProps {
   collapsed: boolean;
-  showCollapseControl?: boolean;
   onNavigate?: () => void;
 }
 
@@ -39,16 +30,11 @@ interface SidebarContentProps {
  * itens e sete `usePermission()` viviam aqui — e divergiam do hub de
  * Configurações e das abas de IA, que mantinham suas próprias listas.
  */
-export function SidebarContent({
-  collapsed,
-  showCollapseControl = true,
-  onNavigate,
-}: SidebarContentProps) {
+export function SidebarContent({ collapsed, onNavigate }: SidebarContentProps) {
   // A barra lateral aparece em TODA tela — traduzi-la aqui é o que faz a
   // escolha de idioma virar algo visível no primeiro clique.
   const t = useT();
   const pathname = usePathname();
-  const [isPending, startTransition] = useTransition();
   const { user, activeOrg } = useAuth();
   const todos = sidebarGroups(
     user.is_platform_admin && !user.support,
@@ -112,21 +98,6 @@ export function SidebarContent({
    */
   const nome = activeOrg?.marca?.nome ?? brand.name;
   const [marcaPrincipal, ...marcaComplemento] = nome.split(/\s+/);
-  const atalhos = [
-    "/app/inbox",
-    "/app/kanban",
-    "/app/agenda",
-    "/app/contacts",
-    "/app/tasks",
-    "/app/radar",
-  ].flatMap((href) => grupos.flatMap((g) => g.items).filter((item) => item.href === href));
-  const analise = grupos.find((g) => g.group.id === "analise")?.group.hub;
-  const [ferramentasAbertas, setFerramentasAbertas] = useState(false);
-  function navegar() {
-    setFerramentasAbertas(false);
-    onNavigate?.();
-  }
-
   /**
    * O mesmo desenho para o LOGO — e é este par de linhas que fecha o caminho do
    * `logo_url` gravado até a tela.
@@ -174,135 +145,109 @@ export function SidebarContent({
             </span>
           )}
         </Link>
-        {showCollapseControl && (
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={() => startTransition(() => toggleSidebar(collapsed))}
-            aria-label={collapsed ? t("Expandir sidebar") : t("Recolher sidebar")}
-            aria-expanded={!collapsed}
-            title={collapsed ? t("Expandir sidebar") : t("Recolher sidebar")}
-            className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted"
-          >
-            {collapsed ? (
-              <CaretDoubleRight size={16} aria-hidden />
-            ) : (
-              <CaretDoubleLeft size={16} aria-hidden />
-            )}
-          </button>
-        )}
       </div>
       <div className="crm-sidebar-search">
         <SearchTrigger compact={collapsed} />
       </div>
-      <nav className="crm-primary-nav" aria-label={t("Navegação principal")}>
-        {!collapsed && <p className="crm-nav-label">{t("Atendimento")}</p>}
-        {atalhos.map((item) => {
-          const Icon = item.icon;
-          const label = item.href === "/app/inbox" ? t("Conversas") : t(item.label);
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+      <nav
+        className="crm-sidebar-groups flex-1 space-y-2 overflow-y-auto p-2"
+        aria-label={t("Navegação principal")}
+      >
+        {grupos.map(({ group, items }) => {
+          const tituloId = `nav-grupo-${group.id}`;
+          // Recolhido o sidebar inteiro (rail de 64px), o grupo sempre mostra
+          // seus itens — não há onde desenhar cabeçalho nem seta para fechá-lo.
+          const aberto = collapsed || !gruposFechados.has(group.id);
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={collapsed ? label : undefined}
-              aria-label={collapsed ? label : undefined}
-              aria-current={active ? "page" : undefined}
-              onClick={onNavigate}
-              className={cn("crm-nav-link", collapsed && "crm-nav-icon")}
-            >
-              <Icon size={21} aria-hidden />
-              {!collapsed && <span>{label}</span>}
-            </Link>
+            <div key={group.id} className="space-y-1">
+              {/* Colapsado, o sidebar tem 64px: seis rótulos ali seriam ilegíveis.
+                  Vira um filete separador, que preserva o agrupamento sem texto. */}
+              {collapsed ? (
+                <div aria-hidden className="mx-2 border-t first:hidden" />
+              ) : (
+                <h2 id={tituloId}>
+                  <button
+                    type="button"
+                    onClick={() => toggleGrupo(group.id)}
+                    aria-expanded={aberto}
+                    className="flex w-full items-center justify-between rounded-md px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
+                  >
+                    {t(group.label)}
+                    <CaretDown
+                      size={12}
+                      weight="bold"
+                      className={cn(
+                        "shrink-0 text-text-subtle transition-transform",
+                        !aberto && "-rotate-90",
+                      )}
+                      aria-hidden
+                    />
+                  </button>
+                </h2>
+              )}
+              {aberto && (
+                <ul
+                  aria-labelledby={collapsed ? undefined : tituloId}
+                  aria-label={collapsed ? t(group.label) : undefined}
+                  className="space-y-1"
+                >
+                  {items.map((item) => {
+                    const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                    const Icon = item.icon;
+                    const label = item.href === "/app/inbox" ? t("Conversas") : t(item.label);
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          title={collapsed ? label : undefined}
+                          aria-current={isActive ? "page" : undefined}
+                          onClick={onNavigate}
+                          className={cn(
+                            "crm-group-link relative flex items-center gap-3 rounded-md px-3 py-1 text-sm transition-colors",
+                            isActive
+                              ? "bg-accent text-accent-foreground"
+                              : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                            collapsed && "justify-center px-2",
+                          )}
+                        >
+                          <Icon size={20} weight="regular" aria-hidden />
+                          {!collapsed && <span className="truncate">{label}</span>}
+                          <NavigationPending />
+                          {item.healthDot && (
+                            <ConnectionHealthDot
+                              className={cn(collapsed ? "absolute top-1.5 right-1.5" : "ml-auto")}
+                            />
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                  {group.hub && (
+                    <li>
+                      <Link
+                        href={group.hub.href}
+                        title={collapsed ? t(group.hub.label) : undefined}
+                        aria-current={pathname === group.hub.href ? "page" : undefined}
+                        onClick={onNavigate}
+                        className={cn(
+                          "crm-group-link flex items-center gap-3 rounded-md px-3 py-1 text-sm transition-colors",
+                          pathname === group.hub.href
+                            ? "bg-accent text-accent-foreground"
+                            : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                          collapsed && "justify-center px-2",
+                        )}
+                      >
+                        <ArrowRight size={18} aria-hidden />
+                        {!collapsed && <span className="truncate">{t(group.hub.label)}</span>}
+                        <NavigationPending />
+                      </Link>
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
           );
         })}
-        {!collapsed && <p className="crm-nav-label crm-nav-label-secondary">{t("Gestão")}</p>}
-        <Popover open={ferramentasAbertas} onOpenChange={setFerramentasAbertas}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className={cn("crm-nav-link w-full", collapsed && "crm-nav-icon")}
-              aria-label={t("Ferramentas")}
-              title={collapsed ? t("Ferramentas") : undefined}
-            >
-              <Gear size={21} aria-hidden />
-              {!collapsed && (
-                <>
-                  <span>{t("Ferramentas")}</span>
-                  <CaretDown size={13} className="ml-auto" aria-hidden />
-                </>
-              )}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
-            side="right"
-            align="start"
-            className="crm-tools-menu max-h-[75dvh] w-80 overflow-y-auto p-3"
-          >
-            <nav className="space-y-2" aria-label={t("Todas as ferramentas")}>
-              {grupos.map(({ group, items }) => {
-                const aberto = !gruposFechados.has(group.id);
-                const tituloId = `nav-grupo-${group.id}`;
-                return (
-                  <section key={group.id}>
-                    <h2 id={tituloId}>
-                      <button
-                        type="button"
-                        onClick={() => toggleGrupo(group.id)}
-                        aria-expanded={aberto}
-                        className="flex w-full items-center justify-between px-3 py-2"
-                      >
-                        {t(group.label)}
-                        <CaretDown size={12} aria-hidden />
-                      </button>
-                    </h2>
-                    {aberto && (
-                      <ul aria-labelledby={tituloId}>
-                        {items.map((item) => {
-                          const Icon = item.icon;
-                          return (
-                            <li key={item.href}>
-                              <Link
-                                href={item.href}
-                                onClick={navegar}
-                                aria-current={pathname === item.href ? "page" : undefined}
-                              >
-                                <Icon size={18} aria-hidden />
-                                <span>{t(item.label)}</span>
-                                {item.healthDot && <ConnectionHealthDot className="ml-auto" />}
-                              </Link>
-                            </li>
-                          );
-                        })}
-                        {group.hub && (
-                          <li>
-                            <Link href={group.hub.href} onClick={navegar}>
-                              <ArrowRight size={18} aria-hidden />
-                              <span>{t(group.hub.label)}</span>
-                            </Link>
-                          </li>
-                        )}
-                      </ul>
-                    )}
-                  </section>
-                );
-              })}
-            </nav>
-          </PopoverContent>
-        </Popover>
-        {analise && (
-          <Link
-            href={analise.href}
-            onClick={onNavigate}
-            className={cn("crm-nav-link", collapsed && "crm-nav-icon")}
-            aria-label={collapsed ? t("Relatórios") : undefined}
-            title={collapsed ? t("Relatórios") : undefined}
-            aria-current={pathname.startsWith(analise.href) ? "page" : undefined}
-          >
-            <ChartBar size={21} aria-hidden />
-            {!collapsed && <span>{t("Relatórios")}</span>}
-          </Link>
-        )}
       </nav>
       <div className="crm-sidebar-footer border-t p-2">
         {rodape && (
@@ -329,7 +274,8 @@ export function SidebarContent({
   );
 }
 
-export function Sidebar({ collapsed }: { collapsed: boolean }) {
+export function Sidebar() {
+  const collapsed = false;
   return (
     <aside
       data-shell-sidebar

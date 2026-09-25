@@ -20,10 +20,10 @@ jobs:
           file: Dockerfile
           platforms: linux/amd64
           load: true
-          tags: deskcomm-bew-ui:1.48.0-r8
-          build-args: APP_VERSION=1.48.0-bew-ui.8
+          tags: deskcomm-bew-ui:1.48.0-r9
+          build-args: APP_VERSION=1.48.0-bew-ui.9
       - name: Export app image
-        run: docker save deskcomm-bew-ui:1.48.0-r8 | gzip -1 > /tmp/bew-ui-image.tar.gz
+        run: docker save deskcomm-bew-ui:1.48.0-r9 | gzip -1 > /tmp/bew-ui-image.tar.gz
       - uses: actions/upload-artifact@v4
         with:
           name: bew-ui-image

@@ -29,7 +29,7 @@ import { InboxKeyboardShortcuts } from "./InboxKeyboardShortcuts";
 import { ShortcutsHelpDialog } from "./ShortcutsHelpDialog";
 import { OpenConversationProvider } from "@/hooks/notifications/OpenConversationContext";
 // ADR-05: ícone de feature sai do mapa canônico, nunca do pacote direto.
-import { CaretLeft, ChatCircle, IdentificationCard, MagnifyingGlass, X } from "@/lib/ui/icons";
+import { CaretLeft, WhatsappLogo, IdentificationCard, MagnifyingGlass, X } from "@/lib/ui/icons";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -616,7 +616,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
             </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-              <ChatCircle size={36} weight="thin" className="text-text-subtle" aria-hidden />
+              <WhatsappLogo size={36} weight="thin" className="text-text-subtle" aria-hidden />
               <p className="text-sm font-medium text-text-muted">{t("Selecione uma conversa")}</p>
               <p className="text-xs text-text-muted">{t("Ou navegue com J e K")}</p>
             </div>

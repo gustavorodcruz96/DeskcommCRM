@@ -3012,3 +3012,11 @@ Port do #1130 (@vgamkt), PR 3 de 4. Spec: `tests/e2e/fluxo-de-atendimento.spec.t
 - Ações secundárias da conversa e nota interna ficam em menus acessíveis. Testes exercitam abertura, encerramento com confirmação/revisão, arquivamento, chamada e nota sem envio ao cliente.
 - Padrão claro sem preferência salva, respeitando escolhas explícitas de escuro/sistema. Cobertura em `lib/theme.test.tsx`.
 - Medidas Chromium em 1440×900, 1280×800 e 390×844: conversa sem overflow horizontal; cabeçalho compacto e composer visível. Evidências de implantação no projeto pai em `deployment/redesign-v1.48-r8/visual`.
+
+
+### BEW v1.48 r9 — navegação e identidade visual
+
+- Sidebar desktop fixa e grupos padrão diretamente acessíveis; gaveta mobile preservada. `sidebar-grupos`, `sidebar-nome-da-organizacao`, `marca-do-produto` e `marca-sem-divergencia-de-hidratacao` cobrem visibilidade, agrupamento e marca.
+- WhatsApp nos atalhos de Contatos e nos dois estados vazios do Inbox. Ícones regulares Bootstrap e panda sobre branco conferidos visualmente na publicação.
+- Indicador de navegação em links pendentes; leituras de papel e MFA concorrem por requisição, sem cache de autorização. `require-role-mfa` cobre concorrência, precedência de papel insuficiente e falha de MFA necessária.
+- O ensaio visual usa dados sintéticos. A validação autenticada de produção abre páginas e diálogos sem salvar registros ou enviar mensagens; não comprova tempo de gravação de todos os CRUDs.

@@ -1,7 +1,8 @@
 "use client";
 
 import {
-  ChatCircle,
+  WhatsappLogo,
+  CalendarBlank,
   Kanban,
   UsersThree,
   ListMagnifyingGlass,
@@ -11,13 +12,8 @@ import {
   ClockCounterClockwise,
   GitBranch,
   Users,
-} from "@phosphor-icons/react";
+} from "@/lib/ui/icons";
 import { useT } from "@/hooks/i18n/useT";
-// Do barril, e não do `@phosphor-icons/react` que as linhas acima usam: a regra
-// (ADR-05) é o barril, e 116 arquivos a seguem. O import de cima é dívida
-// anterior a esta feature — replicá-la para ficar "consistente com o arquivo"
-// espalharia o problema em vez de parar de crescê-lo.
-import { CalendarBlank } from "@/lib/ui/icons";
 import { EmptyState, type EmptyStateAction } from "./EmptyState";
 
 interface VariantProps {
@@ -29,7 +25,7 @@ export function EmptyInbox({ primary, secondary }: VariantProps = {}) {
   const t = useT();
   return (
     <EmptyState
-      icon={ChatCircle}
+      icon={WhatsappLogo}
       headline={t("Sem conversas por aqui")}
       subcopy={t("Quando chegarem mensagens, elas aparecem aqui em tempo real.")}
       primary={primary}
