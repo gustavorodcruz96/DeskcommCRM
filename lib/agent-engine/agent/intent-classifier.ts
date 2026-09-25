@@ -149,6 +149,15 @@ export async function classifyIntent(
         leadId: input.leadId,
         jobId: input.jobId,
         purpose: 'intent_router',
+        intentChoice: {
+          signal: input.signal,
+          recentMessages: input.recentMessages ?? [],
+          choices: input.router.members.map((member) => ({
+            name: member.intentName,
+            description: member.intentDescription,
+            examples: member.examples,
+          })),
+        },
         // Sem modelo próprio ("Automático"), não passa nenhum: o seam resolve
         // pelo painel de provedores ou pelo padrão da organização.
         ...(input.router.classifierModel ? { model: input.router.classifierModel } : {}),

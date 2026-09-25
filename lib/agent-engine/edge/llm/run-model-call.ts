@@ -16,7 +16,7 @@ import { guardServiceTools } from "@/lib/atendimento/fronteira-server";
  * cacheWriteTokens}. Validado no ai@7 via scripts/smoke-llm.sh (modelo real) —
  * upgrade de major re-valida esses paths pelo mesmo gate (regra dura 16).
  */
-import { generateText, stepCountIs, type ModelMessage, type ToolSet } from 'ai';
+import { generateText, Output, stepCountIs, type ModelMessage, type ToolSet } from 'ai';
 import type pg from 'pg';
 import { z } from 'zod';
 
@@ -39,8 +39,9 @@ import {
 } from './orcamento';
 import { costCents } from './pricing';
 import { chaveDeOrcamentoDaInstalacao } from '../../../instalacao/comportamento';
-import { createDefaultRegistry, type ProviderRegistry } from './providers';
+import { createDefaultRegistry, OPENROUTER_ENDPOINT, type ProviderRegistry } from './providers';
 import { buildStablePrefix } from './stable-prefix';
+import { createJevIntentModel, JEV_MODEL, type IntentChoiceInput } from './jev';
 import {
   degrauDoEnderecoProprio,
   prazoLegivel,
@@ -199,6 +200,8 @@ export interface RunModelCallInput {
   system?: string;
   messages: ModelMessage[];
   tools?: ToolSet;
+  /** Typed input for decision-only intent routing; never bypasses the audited seam. */
+  intentChoice?: IntentChoiceInput;
   /**
    * Override do modelo default da org — é como classificador/compaction usam um
    * modelo pequeno pela MESMA camada. Sujeito a enabled_models quando a lista
@@ -659,6 +662,11 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
   let result: Awaited<ReturnType<typeof generateText>>;
   try {
     input.abortSignal?.throwIfAborted();
+    const isJev = model === JEV_MODEL;
+    if (isJev && (config.provider !== 'openrouter' || purpose !== 'intent_router' ||
+      !input.intentChoice || (decisao.baseUrl ?? OPENROUTER_ENDPOINT).replace(/\/$/, '') !== 'https://openrouter.ai/api/v1')) {
+      throw new Error('Jev requer o classificador de intenções e o endpoint padrão da OpenRouter.');
+    }
     // `system` aceita SystemModelMessage (com providerOptions de cache) — igual
     // em v6 e v7 (smoke prova que o cacheControl continua virando cache_control).
     result = await generateText({
@@ -668,9 +676,16 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
       // `config.baseUrl` é o da PRÓPRIA credencial e só o provedor personalizado
       // (#1642) tem um: o endereço nasce junto da chave, então o agente
       // publicado nele alcança o mesmo gateway que a tela testou ao salvar.
-      model: factory(config.apiKey, model, decisao.baseUrl ?? config.baseUrl ?? undefined),
+      model: isJev
+        ? createJevIntentModel(config.apiKey, input.intentChoice!)
+        : factory(config.apiKey, model, decisao.baseUrl ?? config.baseUrl ?? undefined),
       system: prefix.system,
       messages: input.messages,
+      // Checkpoints are structured state. This provider otherwise returns prose,
+      // causing a completed preview to fail during the checkpoint parse.
+      ...(config.provider === 'openrouter' && model === 'deepseek/deepseek-v4.1-flash' && purpose === 'checkpoint'
+        ? { output: Output.json() }
+        : {}),
       abortSignal: input.abortSignal,
       tools: guardServiceTools(prefix.tools),
       stopWhen:
@@ -732,7 +747,10 @@ export async function runModelCall(db: pg.Pool, cfg: LlmEdgeConfig, input: RunMo
   // O TTL é o MESMO que gravou o prefixo estável acima: a gravação de cache custa
   // 1.25× a entrada em 5m e 2× em 1h, e supor a doutrina superfaturaria 60% da
   // parcela de cache write em quem usa o knob.
-  const cost = costCents(model, usage, cfg.cacheTtl ?? '1h');
+  const decisionCost = model === JEV_MODEL ? result.providerMetadata?.openrouter?.costUsd : undefined;
+  const cost = typeof decisionCost === 'number' && Number.isFinite(decisionCost) && decisionCost >= 0
+    ? decisionCost * 100
+    : costCents(model, usage, cfg.cacheTtl ?? '1h');
 
   const { rows } = await db.query<{ id: string }>(
     `insert into llm_calls

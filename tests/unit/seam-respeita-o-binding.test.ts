@@ -71,27 +71,36 @@ function poolFalso(opts: {
 }
 
 /** Registry que registra COM O QUE foi chamado — o ponto de verdade. */
-function registrySpiao() {
+function registrySpiao(fixture: { text?: string; cost?: number } = {}) {
   const chamadas: Array<{ provider: string; apiKey: string; modelId: string }> = [];
+  const prompts: unknown[] = [];
+  const formats: unknown[] = [];
   const fabrica = (provider: string) => (apiKey: string, modelId: string) => {
     chamadas.push({ provider, apiKey, modelId });
     return {
       specificationVersion: "v3",
       provider,
       modelId,
-      doGenerate: async () => ({
-        content: [{ type: "text", text: "ok" }],
-        finishReason: { unified: "stop", raw: undefined },
-        usage: {
-          inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
-          outputTokens: { total: 1, text: 1, reasoning: 0 },
-        },
-        warnings: [],
-      }),
+      doGenerate: async (options: { prompt: unknown; responseFormat?: unknown }) => {
+        prompts.push(options.prompt);
+        formats.push(options.responseFormat);
+        return {
+          content: [{ type: "text", text: fixture.text ?? "ok" }],
+          finishReason: { unified: "stop", raw: undefined },
+          usage: {
+            inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 1, text: 1, reasoning: 0 },
+            ...(fixture.cost === undefined ? {} : { raw: { cost: fixture.cost } }),
+          },
+          warnings: [],
+        };
+      },
     } as never;
   };
   return {
     chamadas,
+    prompts,
+    formats,
     registry: {
       anthropic: fabrica("anthropic"),
       openai: fabrica("openai"),
@@ -256,5 +265,118 @@ describe("o custo é atribuído ao ponto certo", () => {
     expect(params).toContain("flywheel_judge");
     expect(params).toContain("openai");
     expect(params).toContain("gpt-5-mini");
+  });
+});
+
+
+describe("decision API regressions", () => {
+  it("Jev recusa o endpoint customizado da instalação antes de enviar a chave", async () => {
+    vi.stubEnv("OPENROUTER_BASE_URL", "https://gateway.example/v1");
+    vi.resetModules();
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    try {
+      const { runModelCall: isolatedRunModelCall } =
+        await import("@/lib/agent-engine/edge/llm/run-model-call");
+      const { pool } = poolFalso({
+        binding: {
+          provider: "openrouter",
+          credential_id: null,
+          model_id: "typesafe/jev-1.13",
+          base_url: null,
+          is_enabled: true,
+        },
+      });
+      const { registry, chamadas } = registrySpiao();
+      await expect(
+        isolatedRunModelCall(
+          pool,
+          { ...cfg, openrouterApiKey: "test-key" },
+          {
+            tenantId: ORG,
+            purpose: "intent_router",
+            messages: [{ role: "user", content: "tela quebrada" }],
+            intentChoice: {
+              signal: "tela quebrada",
+              choices: [{ name: "suporte", description: "Reparo", examples: [] }],
+            },
+          },
+          { registry },
+        ),
+      ).rejects.toThrow("endpoint padrão da OpenRouter");
+      expect(fetcher).not.toHaveBeenCalled();
+      expect(chamadas).toHaveLength(0);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
+  });
+
+  it("Jev atravessa o seam, chama decisions e registra custo real sem usar chat", async () => {
+    const { pool, inserts } = poolFalso({
+      binding: {
+        provider: "openrouter",
+        credential_id: null,
+        model_id: "typesafe/jev-1.13",
+        base_url: null,
+        is_enabled: true,
+      },
+    });
+    const { registry, chamadas } = registrySpiao();
+    const fetcher = vi.fn().mockResolvedValue(
+      Response.json({
+        answers: {
+          intent: {
+            type: "choice",
+            choice: "suporte",
+            confidence: 0.9,
+            probabilities: { suporte: 0.95, none: 0.05 },
+          },
+        },
+        usage: { input_tokens: 100, output_tokens: 20, cost: 0.0000042 },
+      }),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    try {
+      const result = await runModelCall(
+        pool,
+        { ...cfg, openrouterApiKey: "test-key" },
+        {
+          tenantId: ORG,
+          purpose: "intent_router",
+          messages: [{ role: "user", content: "tela quebrada" }],
+          intentChoice: {
+            signal: "tela quebrada",
+            choices: [{ name: "suporte", description: "Reparo", examples: [] }],
+          },
+        },
+        { registry },
+      );
+      expect(result.costCents).toBeCloseTo(0.00042);
+      expect(inserts[0]?.params[11]).toBeCloseTo(0.00042);
+      expect(fetcher.mock.calls[0]?.[0]).toBe("https://openrouter.ai/api/alpha/decisions");
+      expect(chamadas).toHaveLength(0);
+      expect(JSON.parse(result.result.text).intent).toBe("suporte");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+
+describe("checkpoint estruturado", () => {
+  it('solicita JSON no checkpoint DeepSeek', async () => {
+    const { pool, inserts } = poolFalso({ binding: {
+      provider: 'openrouter', credential_id: null, model_id: 'deepseek/deepseek-v4.1-flash',
+      base_url: null, is_enabled: true,
+    } });
+    const { registry, formats } = registrySpiao({ text: '{"commitments":[],"objections":[],"next_action":null,"rolling_summary":"Teste"}', cost: 0.00017 });
+    const result = await runModelCall(pool, { ...cfg, openrouterApiKey: 'test-key' }, {
+      tenantId: ORG, purpose: 'checkpoint', messages: [{ role: 'user', content: 'Feche o turno em JSON' }],
+    }, { registry });
+    expect(formats).toEqual([expect.objectContaining({ type: 'json' })]);
+    expect(JSON.parse(result.result.text).rolling_summary).toBe("Teste");
+    expect(inserts).toHaveLength(1);
   });
 });

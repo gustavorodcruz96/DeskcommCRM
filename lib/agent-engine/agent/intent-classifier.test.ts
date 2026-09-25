@@ -86,6 +86,7 @@ describe('classifyIntent', () => {
     const call = runModelCall.mock.calls[0]![2];
     expect(call.model).toBe('claude-haiku-4-5');
     expect(call.purpose).toBe('intent_router');
+    expect(call.intentChoice).toEqual({ signal: 'quanto custa', recentMessages: [], choices: members.map(m => ({ name: m.intentName, description: m.intentDescription, examples: m.examples })) });
   });
 
   it('leva o contexto recente até o prompt que vai ao modelo', async () => {
