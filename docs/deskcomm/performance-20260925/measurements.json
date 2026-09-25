@@ -1,0 +1,332 @@
+{
+  "browser-api-before": [
+    {
+      "path": "/api/v1/conversations?status=open&assigned_to=unassigned&limit=40",
+      "samples": [
+        {
+          "status": 200,
+          "ms": 1565,
+          "bytes": 18506,
+          "timing": null
+        },
+        {
+          "status": 200,
+          "ms": 1571,
+          "bytes": 18506,
+          "timing": null
+        },
+        {
+          "status": 200,
+          "ms": 1548,
+          "bytes": 18506,
+          "timing": null
+        }
+      ]
+    },
+    {
+      "path": "/api/v1/conversations/counts",
+      "samples": [
+        {
+          "status": 200,
+          "ms": 1646,
+          "bytes": 92,
+          "timing": null
+        },
+        {
+          "status": 200,
+          "ms": 1672,
+          "bytes": 92,
+          "timing": null
+        },
+        {
+          "status": 200,
+          "ms": 1868,
+          "bytes": 92,
+          "timing": null
+        }
+      ]
+    },
+    {
+      "path": "/api/v1/auth/interface",
+      "samples": [
+        {
+          "status": 200,
+          "ms": 1204,
+          "bytes": 150,
+          "timing": null
+        },
+        {
+          "status": 200,
+          "ms": 1114,
+          "bytes": 150,
+          "timing": null
+        },
+        {
+          "status": 200,
+          "ms": 1195,
+          "bytes": 150,
+          "timing": null
+        }
+      ]
+    }
+  ],
+  "browser-api-after": [
+    {
+      "path": "/api/v1/conversations?status=open&assigned_to=unassigned&limit=40",
+      "samples": [
+        {
+          "status": 200,
+          "ms": 1197,
+          "bytes": 18495
+        },
+        {
+          "status": 200,
+          "ms": 1613,
+          "bytes": 18495
+        },
+        {
+          "status": 200,
+          "ms": 1124,
+          "bytes": 18495
+        }
+      ]
+    },
+    {
+      "path": "/api/v1/conversations/counts",
+      "samples": [
+        {
+          "status": 200,
+          "ms": 1239,
+          "bytes": 92
+        },
+        {
+          "status": 200,
+          "ms": 1313,
+          "bytes": 92
+        },
+        {
+          "status": 200,
+          "ms": 4067,
+          "bytes": 92
+        }
+      ]
+    },
+    {
+      "path": "/api/v1/auth/interface",
+      "samples": [
+        {
+          "status": 200,
+          "ms": 3224,
+          "bytes": 150
+        },
+        {
+          "status": 200,
+          "ms": 1312,
+          "bytes": 150
+        },
+        {
+          "status": 200,
+          "ms": 1532,
+          "bytes": 150
+        }
+      ]
+    }
+  ],
+  "browser-api-warm": [
+    {
+      "path": "/api/v1/conversations?status=open&assigned_to=unassigned&limit=40",
+      "samples": [
+        {
+          "status": 200,
+          "ms": 1053,
+          "bytes": 18495
+        },
+        {
+          "status": 200,
+          "ms": 1101,
+          "bytes": 18495
+        },
+        {
+          "status": 200,
+          "ms": 1795,
+          "bytes": 18495
+        }
+      ]
+    },
+    {
+      "path": "/api/v1/conversations/counts",
+      "samples": [
+        {
+          "status": 200,
+          "ms": 1292,
+          "bytes": 92
+        },
+        {
+          "status": 200,
+          "ms": 1225,
+          "bytes": 92
+        },
+        {
+          "status": 200,
+          "ms": 1256,
+          "bytes": 92
+        }
+      ]
+    },
+    {
+      "path": "/api/v1/auth/interface",
+      "samples": [
+        {
+          "status": 200,
+          "ms": 904,
+          "bytes": 150
+        },
+        {
+          "status": 200,
+          "ms": 857,
+          "bytes": 150
+        },
+        {
+          "status": 200,
+          "ms": 901,
+          "bytes": 150
+        }
+      ]
+    }
+  ],
+  "contacts-before": {
+    "title": "Contatos · Panda BEW",
+    "nav": [
+      {
+        "ttfb": 1642,
+        "dom": 1954,
+        "load": 2320
+      }
+    ],
+    "requests": [
+      {
+        "path": "/api/v1/auth/realtime-token",
+        "ms": 492
+      },
+      {
+        "path": "/api/v1/channel-sessions",
+        "ms": 1309
+      },
+      {
+        "path": "/api/v1/voice/calls/history",
+        "ms": 1584
+      },
+      {
+        "path": "/api/v1/tags/cores",
+        "ms": 1433
+      },
+      {
+        "path": "/api/v1/contacts",
+        "ms": 1579
+      },
+      {
+        "path": "/app",
+        "ms": 270
+      },
+      {
+        "path": "/app/inbox",
+        "ms": 277
+      },
+      {
+        "path": "/app/radar",
+        "ms": 284
+      },
+      {
+        "path": "/app/agenda",
+        "ms": 281
+      },
+      {
+        "path": "/app/templates",
+        "ms": 270
+      },
+      {
+        "path": "/app/kanban",
+        "ms": 271
+      },
+      {
+        "path": "/app/tasks",
+        "ms": 393
+      },
+      {
+        "path": "/app/crm",
+        "ms": 294
+      },
+      {
+        "path": "/app/ai/agents",
+        "ms": 347
+      },
+      {
+        "path": "/app/ai/followups",
+        "ms": 338
+      },
+      {
+        "path": "/app/ai/routers",
+        "ms": 331
+      },
+      {
+        "path": "/app/settings",
+        "ms": 315
+      },
+      {
+        "path": "/app/ai/inbox",
+        "ms": 310
+      },
+      {
+        "path": "/app",
+        "ms": 302
+      },
+      {
+        "path": "/app/inbox",
+        "ms": 301
+      },
+      {
+        "path": "/app/radar",
+        "ms": 251
+      },
+      {
+        "path": "/app/agenda",
+        "ms": 250
+      },
+      {
+        "path": "/app/templates",
+        "ms": 262
+      },
+      {
+        "path": "/app/kanban",
+        "ms": 279
+      },
+      {
+        "path": "/app/contacts",
+        "ms": 260
+      }
+    ]
+  },
+  "contacts-after": {
+    "title": "Contatos · Panda BEW",
+    "nav": [
+      {
+        "ttfb": 1247,
+        "dom": 1517,
+        "load": 2044
+      }
+    ],
+    "requests": [
+      {
+        "path": "/api/v1/contacts",
+        "ms": 1416
+      }
+    ],
+    "tableRows": 25
+  },
+  "limits": [
+    "Three requests per API per round; live data; no simulated Fabiana network.",
+    "First post-deploy round retained alongside warmed round.",
+    "Tab event timers were unreliable and excluded; selection, URL and absence of RSC navigation verified instead.",
+    "No customer test message sent."
+  ]
+}
