@@ -187,3 +187,25 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
     ).toBeNull();
   });
 });
+
+describe("ConversationHeader — ficha e busca sob demanda", () => {
+  it("abre contexto e busca sem executar ações de atendimento", async () => {
+    const user = userEvent.setup();
+    const ficha = vi.fn();
+    const buscar = vi.fn();
+    render(
+      <ConversationHeader
+        conversation={conversa("open")}
+        onAbrirFicha={ficha}
+        onBuscar={buscar}
+        buscaAberta={false}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Ficha do contato" }));
+    expect(ficha).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole("button", { name: "Buscar nesta conversa" }));
+    expect(buscar).toHaveBeenCalledOnce();
+    expect(closeMutate).not.toHaveBeenCalled();
+    expect(arquivarMutate).not.toHaveBeenCalled();
+  });
+});

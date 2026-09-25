@@ -2998,3 +2998,10 @@ Port do #1130 (@vgamkt), PR 3 de 4. Spec: `tests/e2e/fluxo-de-atendimento.spec.t
 | J33.4 | Três mensagens pelo webhook do WAHA; a ficha mostra o roteiro «Concluído» com CPF e modelo (caixa medida por `boundingBox` e estilo computado) |
 
 **NÃO coberto por esta spec:** o turno do agente roda com o worker e o modelo de verdade — no CI não há nenhum dos dois, e a spec chama as mesmas funções do motor (`prepararRoteiroDoTurno`, `garantirPerguntaDoRoteiro`) com o validador devolvendo `indefinido`. A pergunta enviada ao cliente pelo WhatsApp e a leitura pelo validador de modelo ficam para a prova do PR 4.
+
+### Ajuste BEW da Inbox — 25/09/2026
+
+- Ficha por nome/botão, sem coluna fixa: callbacks em `ConversationHeader.test.tsx`; deep-link abre/fecha a ficha em `deep-link-nao-espera-a-lista.test.tsx`.
+- Busca somente nas mensagens carregadas: `chat-thread-ancoragem-instantanea.test.tsx` cobre correspondências, ausência, ocultadas e revogadas. Não equivale a busca histórica no servidor.
+- Acabamento BEW: renderização isolada de componentes nativos com dados sintéticos em 1440×900, 1280×800 e 390×844; sem overflow horizontal e campo de mensagem visível. Artefatos na pasta de implantação `deployment/redesign-v1.48/visual` do projeto pai.
+- Limite: a sessão autenticada da instalação não foi validada visualmente; a criação da sessão Cloudflare Browser Run falhou por permissão. A renderização isolada e os testes de componentes não substituem a prova de jornada autenticada nem envio real.

@@ -134,15 +134,14 @@ describe("o logo na barra lateral", () => {
 
   const imagem = () => screen.getByRole("img");
 
-  it("com logo da instalação, a barra desenha a imagem no lugar do nome", () => {
+  it("com logo da instalação, a barra desenha símbolo e nome", () => {
     marcaDaInstalacao = { ...marcaDaInstalacao, logoUrl: LOGO_DA_INSTALACAO };
     contexto = { user: usuario, activeOrg: org };
     renderSidebar({ collapsed: false });
 
     expect(imagem().getAttribute("src")).toBe(LOGO_DA_INSTALACAO);
-    // A ausência importa: uma barra que mostrasse imagem E nome passaria só na
-    // asserção de cima, e o cabeçalho tem 56px de altura para um dos dois.
-    expect(screen.queryByText("Sistema do Revendedor")).toBeNull();
+    // O cabeçalho revisado reserva espaço para símbolo e nome lado a lado.
+    expect(screen.getByText("Sistema do Revendedor")).toBeTruthy();
   });
 
   it("o logo da organização SUBSTITUI o da instalação", () => {

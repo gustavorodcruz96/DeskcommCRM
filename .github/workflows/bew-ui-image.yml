@@ -1,0 +1,32 @@
+name: BEW UI image
+on:
+  push:
+    branches: [feat/bew-ui-v1.48]
+    paths-ignore: ['docs/**', '.changes/**']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: deskcomm-bew-ui:1.48.0-r7
+          build-args: APP_VERSION=1.48.0-bew-ui.7
+      - name: Export app image
+        run: docker save deskcomm-bew-ui:1.48.0-r7 | gzip -1 > /tmp/bew-ui-image.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bew-ui-image
+          path: /tmp/bew-ui-image.tar.gz
+          retention-days: 1
+          compression-level: 0

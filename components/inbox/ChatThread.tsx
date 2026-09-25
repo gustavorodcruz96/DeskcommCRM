@@ -20,12 +20,17 @@ import { useAlterarMensagem } from "@/hooks/inbox/useAlterarMensagem";
 import { useDebugToggle } from "@/hooks/ai/useDebugToggle";
 import { useActiveOrg, useUser } from "@/hooks/auth/AuthProvider";
 import { ROLE_RANK } from "@/lib/auth/types";
-import { capabilitiesOf, transportaMensagem, type ChannelProvider } from "@/lib/channels/capabilities";
+import {
+  capabilitiesOf,
+  transportaMensagem,
+  type ChannelProvider,
+} from "@/lib/channels/capabilities";
 import { montarCartoesDaPassagem, type CartaoDaPassagem } from "@/lib/escalacao/cartao-da-passagem";
 import type { Message, Note } from "@/lib/types/messaging";
 
 interface Props {
   conversationId: string | null;
+  searchTerm?: string;
   provider?: string | null;
   /** Escolher uma mensagem para responder. Sobe até o composer. */
   onResponder?: (m: Message) => void;
@@ -74,13 +79,24 @@ export function mergeThreadItems(
   return items;
 }
 
-function dayLabel(d: Date, t: (texto: string) => string = (texto) => texto, locale: Locale): string {
+function dayLabel(
+  d: Date,
+  t: (texto: string) => string = (texto) => texto,
+  locale: Locale,
+): string {
   if (isToday(d)) return t("Hoje");
   if (isYesterday(d)) return t("Ontem");
   return format(d, "dd/MM/yyyy", { locale: locale });
 }
 
-export function ChatThread({ conversationId, provider, onResponder, dono, contatoId }: Props) {
+export function ChatThread({
+  conversationId,
+  provider,
+  onResponder,
+  dono,
+  contatoId,
+  searchTerm = "",
+}: Props) {
   const localeDaData = useLocaleDeData();
   const t = useT();
   const q = useMessagesRealtime(conversationId);
@@ -103,14 +119,12 @@ export function ChatThread({ conversationId, provider, onResponder, dono, contat
   const deleteNote = useDeleteNote(conversationId ?? "");
   const { editar, apagar, ocultar, restaurar } = useAlterarMensagem(conversationId);
   const canManage = activeOrg != null && ROLE_RANK[activeOrg.role] >= ROLE_RANK.manager;
-  const canalAlteraEnviada = transportaMensagem(provider)
-    && capabilitiesOf(provider as ChannelProvider).alteraMensagemEnviada;
+  const canalAlteraEnviada =
+    transportaMensagem(provider) &&
+    capabilitiesOf(provider as ChannelProvider).alteraMensagemEnviada;
   const { enabled: debugCitations } = useDebugToggle(activeOrg?.role ?? null);
 
-  const messages: Message[] = useMemo(
-    () => q.data?.pages.flatMap((p) => p.data) ?? [],
-    [q.data],
-  );
+  const messages: Message[] = useMemo(() => q.data?.pages.flatMap((p) => p.data) ?? [], [q.data]);
 
   /**
    * As mensagens por id, para resolver a CITADA sem ir ao servidor.
@@ -120,6 +134,28 @@ export function ChatThread({ conversationId, provider, onResponder, dono, contat
    * citada ficou fora da página carregada, ele simplesmente não aparece, que é
    * melhor que segurar a conversa esperando por um texto de enfeite.
    */
+  const termo = searchTerm.trim().toLocaleLowerCase();
+  const resultados = useMemo(
+    () =>
+      new Set(
+        messages
+          .filter(
+            (m) =>
+              termo &&
+              !m.revoked_at &&
+              !m.metadata?.crm_hidden_at &&
+              m.body?.toLocaleLowerCase().includes(termo),
+          )
+          .map((m) => m.id),
+      ),
+    [messages, termo],
+  );
+  useEffect(() => {
+    if (termo)
+      scrollerRef.current
+        ?.querySelector('[data-search-match="true"]')
+        ?.scrollIntoView({ block: "nearest" });
+  }, [termo, resultados]);
   const porId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages]);
 
   const cartoes: CartaoDaPassagem[] = useMemo(
@@ -286,8 +322,13 @@ export function ChatThread({ conversationId, provider, onResponder, dono, contat
   }
 
   return (
-    <div {...sinalDoCanal} className="flex h-full min-w-0 flex-col">
-      <div ref={scrollerRef} className="min-w-0 flex-1 overflow-y-auto py-2">
+    <div {...sinalDoCanal} className="crm-chat-thread flex h-full min-w-0 flex-col">
+      {termo && (
+        <div className="bg-background px-4 py-1 text-xs" role="status">
+          {resultados.size} {t("resultados nas mensagens carregadas")}
+        </div>
+      )}
+      <div ref={scrollerRef} className="crm-message-canvas min-w-0 flex-1 overflow-y-auto py-2">
         {q.hasNextPage && (
           <div className="flex justify-center py-2">
             <Button
@@ -342,6 +383,7 @@ export function ChatThread({ conversationId, provider, onResponder, dono, contat
                 <MessageBubble
                   key={`msg-${item.data.id}`}
                   message={item.data}
+                  searchMatch={resultados.has(item.data.id)}
                   debugCitations={debugCitations}
                   onResponder={onResponder}
                   // A citada sai da MESMA lista já carregada: buscar no servidor
@@ -353,18 +395,27 @@ export function ChatThread({ conversationId, provider, onResponder, dono, contat
                   // CRM — inclusive nas do colega, porque `sent_via='user'` só
                   // registra que um humano digitou, nunca qual.
                   viewerUserId={currentUser.id}
-                  onEditar={canalAlteraEnviada && item.data.sent_by_user_id === currentUser.id
-                    ? (text) => editar.mutateAsync({ id: item.data.id, text }).then(() => undefined)
-                    : undefined}
-                  onApagar={canalAlteraEnviada && item.data.sent_by_user_id === currentUser.id
-                    ? () => apagar.mutateAsync(item.data.id).then(() => undefined)
-                    : undefined}
-                  onOcultar={canManage && item.data.direction === "inbound"
-                    ? () => ocultar.mutateAsync(item.data.id).then(() => undefined)
-                    : undefined}
-                  onRestaurar={canManage && item.data.direction === "inbound"
-                    ? () => restaurar.mutateAsync(item.data.id).then(() => undefined)
-                    : undefined}
+                  onEditar={
+                    canalAlteraEnviada && item.data.sent_by_user_id === currentUser.id
+                      ? (text) =>
+                          editar.mutateAsync({ id: item.data.id, text }).then(() => undefined)
+                      : undefined
+                  }
+                  onApagar={
+                    canalAlteraEnviada && item.data.sent_by_user_id === currentUser.id
+                      ? () => apagar.mutateAsync(item.data.id).then(() => undefined)
+                      : undefined
+                  }
+                  onOcultar={
+                    canManage && item.data.direction === "inbound"
+                      ? () => ocultar.mutateAsync(item.data.id).then(() => undefined)
+                      : undefined
+                  }
+                  onRestaurar={
+                    canManage && item.data.direction === "inbound"
+                      ? () => restaurar.mutateAsync(item.data.id).then(() => undefined)
+                      : undefined
+                  }
                 />
               ),
             )}

@@ -159,14 +159,16 @@ describe("deep-link para conversa fora do filtro", () => {
     );
     // O controle: a lista continua no ar. Sem ele, este caso passaria também
     // num mundo em que a busca única espera — bastaria a lista ter respondido.
-    expect(
-      get.mock.calls.some((c) => (c[0] ?? "").startsWith("/api/v1/conversations?")),
-    ).toBe(true);
+    expect(get.mock.calls.some((c) => (c[0] ?? "").startsWith("/api/v1/conversations?"))).toBe(
+      true,
+    );
   });
 
   it("entrega a conversa ao painel do contato com a lista ainda no ar", async () => {
     montar();
+    fireEvent.click(await screen.findByRole("button", { name: "Ficha" }));
     await waitFor(() => expect(screen.getByTestId("painel")).toHaveTextContent(CONVERSA));
+    fireEvent.click(screen.getByRole("button", { name: "Fechar" }));
   });
 
   it("gera link por conversa e acompanha a volta do navegador", async () => {
@@ -182,13 +184,17 @@ describe("deep-link para conversa fora do filtro", () => {
     expect(window.location.pathname + window.location.search).toBe(
       `/app/inbox?filter=all&id=${CONVERSA}`,
     );
+    fireEvent.click(await screen.findByRole("button", { name: "Ficha" }));
     await waitFor(() => expect(screen.getByTestId("painel")).toHaveTextContent(CONVERSA));
+    fireEvent.click(screen.getByRole("button", { name: "Fechar" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Abrir outro cliente" }));
     expect(window.location.pathname + window.location.search).toBe(
       `/app/inbox?filter=all&id=${OUTRA_CONVERSA}`,
     );
+    fireEvent.click(await screen.findByRole("button", { name: "Ficha" }));
     await waitFor(() => expect(screen.getByTestId("painel")).toHaveTextContent(OUTRA_CONVERSA));
+    fireEvent.click(screen.getByRole("button", { name: "Fechar" }));
 
     // Simula as duas entradas anteriores que o botão Voltar restaura.
     window.history.replaceState(null, "", `/app/inbox?filter=all&id=${CONVERSA}`);
@@ -197,7 +203,9 @@ describe("deep-link para conversa fora do filtro", () => {
         <InboxLayout />
       </QueryClientProvider>,
     );
+    fireEvent.click(await screen.findByRole("button", { name: "Ficha" }));
     await waitFor(() => expect(screen.getByTestId("painel")).toHaveTextContent(CONVERSA));
+    fireEvent.click(screen.getByRole("button", { name: "Fechar" }));
 
     window.history.replaceState(null, "", "/app/inbox?filter=all");
     tela.rerender(
@@ -205,6 +213,6 @@ describe("deep-link para conversa fora do filtro", () => {
         <InboxLayout />
       </QueryClientProvider>,
     );
-    await waitFor(() => expect(screen.getByTestId("painel")).toHaveTextContent("sem-conversa"));
+    await waitFor(() => expect(screen.queryByTestId("painel")).toBeNull());
   });
 });

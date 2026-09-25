@@ -9,7 +9,7 @@ import { toggleSidebar } from "@/app/actions/shell/toggleSidebar";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { ConnectionHealthDot } from "@/components/connections/ConnectionHealthDot";
 import { VersionFooter } from "@/components/shell/VersionFooter";
-import { LogotipoDoProduto, SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
+import { SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
 import { marcaEhADoProduto } from "@/lib/branding";
 import { useMarcaDaInstalacao } from "@/lib/branding/contexto";
 import { GRUPO_NO_RODAPE, sidebarGroups } from "@/lib/navigation/registry";
@@ -112,78 +112,54 @@ export function SidebarContent({
    * descer para ele — que é o contrário do que a precedência por campo promete.
    */
   const logo = activeOrg?.marca?.logoUrl || brand.logoUrl;
-  const logoEscuro =
-    activeOrg?.marca?.logoDarkUrl !== undefined
-      ? activeOrg.marca.logoDarkUrl
-      : activeOrg?.marca?.logoUrl
-        ? null
-        : brand.logoDarkUrl;
-  // Só quando NINGUÉM — nem a instalação, nem a organização — pôs marca própria:
-  // é a condição de `lib/branding.ts`, avaliada sobre o que a barra vai mostrar.
   const marcaDoProduto = marcaEhADoProduto({ name: nome, logoUrl: logo ?? null });
 
   return (
     <>
       <div
         className={cn(
-          "flex h-14 items-center border-b px-4",
-          collapsed ? "justify-center" : "justify-start",
+          "app-brand flex items-center gap-2 border-b p-4",
+          collapsed && "flex-col px-2",
         )}
       >
-        {(logo || logoEscuro) && !collapsed ? (
-          // Sem arte própria para o escuro, preserva a proteção de contraste.
-          <div
-            className={cn(
-              "rounded-md",
-              !logoEscuro && "dark:bg-white dark:px-2 dark:py-1 dark:shadow-sm",
-            )}
+        <Link
+          href="/app"
+          aria-label={nome}
+          onClick={onNavigate}
+          className="flex min-w-0 flex-1 items-center gap-3"
+        >
+          {logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logo}
+              alt={nome}
+              className="app-brand-image h-10 w-10 shrink-0 rounded-xl object-contain"
+            />
+          ) : marcaDoProduto ? (
+            <SimboloDoProduto nome={nome} className="h-10 w-10 shrink-0" />
+          ) : collapsed ? (
+            <span aria-hidden className="text-lg font-bold">
+              {[...nome][0]?.toUpperCase() ?? brand.initial}
+            </span>
+          ) : null}
+          {!collapsed && <span className="truncate text-lg font-bold tracking-tight">{nome}</span>}
+        </Link>
+        {showCollapseControl && (
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => startTransition(() => toggleSidebar(collapsed))}
+            aria-label={collapsed ? t("Expandir sidebar") : t("Recolher sidebar")}
+            aria-expanded={!collapsed}
+            title={collapsed ? t("Expandir sidebar") : t("Recolher sidebar")}
+            className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted"
           >
-            {/* <img> em vez de next/image de propósito: a URL vem de quem hospeda
-              (banco ou .env), e next/image exige allowlist de domínios fechada em
-              build — a imagem pré-buildada rejeitaria o domínio do self-hoster.
-              Altura fixa e largura livre porque a arte enviada tem proporção
-              desconhecida; forçar as duas distorceria o logo de quem configurou. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {logo ? (
-              <img
-                src={logo}
-                alt={nome}
-                className={cn(
-                  "h-7 w-auto max-w-[10rem] object-contain",
-                  logoEscuro && "dark:hidden",
-                )}
-              />
+            {collapsed ? (
+              <CaretDoubleRight size={16} aria-hidden />
             ) : (
-              <span className="dark:hidden">{nome}</span>
+              <CaretDoubleLeft size={16} aria-hidden />
             )}
-            {logoEscuro ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoEscuro}
-                alt={nome}
-                className="hidden h-7 w-auto max-w-[10rem] object-contain dark:block"
-              />
-            ) : null}
-          </div>
-        ) : marcaDoProduto ? (
-          // O desenho do produto, inline (ver `components/branding/MarcaDoProduto.tsx`):
-          // logotipo com a barra aberta, só o símbolo com ela recolhida.
-          collapsed ? (
-            <SimboloDoProduto nome={nome} className="h-8 w-8" />
-          ) : (
-            <LogotipoDoProduto nome={nome} className="h-8 w-auto" />
-          )
-        ) : (
-          <span className={cn("font-semibold tracking-tight", collapsed && "sr-only")}>{nome}</span>
-        )}
-        {collapsed && !marcaDoProduto && (
-          <span aria-hidden className="text-lg font-bold text-primary">
-            {/* Spread e não `[0]`: nome começando com emoji ou acento composto
-                quebraria no meio do code point. Mesma regra de `resolveBranding`
-                — a inicial precisa acompanhar o nome que a barra mostra, senão
-                recolher o menu troca a marca. */}
-            {[...nome][0]?.toUpperCase() ?? brand.initial}
-          </span>
+          </button>
         )}
       </div>
       {/*
@@ -345,25 +321,6 @@ export function SidebarContent({
           </Link>
         )}
         <VersionFooter collapsed={collapsed} onNavigate={onNavigate} />
-        {showCollapseControl && (
-          <button
-            type="button"
-            onClick={() => startTransition(() => toggleSidebar(collapsed))}
-            disabled={isPending}
-            className={cn(
-              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-              collapsed && "justify-center px-2",
-            )}
-            aria-label={collapsed ? t("Expandir sidebar") : t("Recolher sidebar")}
-          >
-            {collapsed ? (
-              <CaretDoubleRight size={14} aria-hidden />
-            ) : (
-              <CaretDoubleLeft size={14} aria-hidden />
-            )}
-            {!collapsed && <span>{t("Recolher")}</span>}
-          </button>
-        )}
       </div>
     </>
   );
@@ -372,6 +329,7 @@ export function SidebarContent({
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
   return (
     <aside
+      data-shell-sidebar
       className={cn(
         // ⚠️ `sticky`, e NUNCA `fixed`.
         //
@@ -393,7 +351,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         // `shrink-0` porque item de flex encolhe por padrão, e uma barra de 60
         // espremida para caber é o mesmo defeito por outro caminho.
         "sticky top-0 z-30 flex h-screen shrink-0 flex-col border-r bg-card transition-[width] duration-200",
-        collapsed ? "w-16" : "w-60",
+        collapsed ? "w-20" : "w-60",
       )}
     >
       <SidebarContent collapsed={collapsed} />
