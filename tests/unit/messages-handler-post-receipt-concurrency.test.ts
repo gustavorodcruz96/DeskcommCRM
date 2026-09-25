@@ -1,11 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sendMessageHandler } from "@/app/api/v1/messages/_handler";
 import type { HandlerCtx } from "@/lib/api/handlers/types";
 
-const mocks = vi.hoisted(() => ({ audit: vi.fn(), send: vi.fn() }));
+const mocks = vi.hoisted(() => ({ audit: vi.fn(), send: vi.fn(), warn: vi.fn() }));
 vi.mock("@/lib/audit", () => ({ audit: mocks.audit }));
+vi.mock("@/lib/logger", () => ({ logger: { warn: mocks.warn } }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/channels", () => ({
   CHANNEL_SESSION_REF_COLUMNS: "provider, waha_session_name",
@@ -34,7 +35,7 @@ function deferred() {
 }
 
 /** Deferred promises model remote IO; no clocks, live database or channel send. */
-function fixture() {
+function fixture(onCompleted: (operation: string) => void = () => {}) {
   const gates = {
     receipt: deferred(), conversation: deferred(), contact: deferred(), audit: deferred(), event: deferred(),
   };
@@ -45,19 +46,25 @@ function fixture() {
     started.audit = true;
     await gates.audit.promise;
     state.audit = entry;
+    onCompleted("audit");
   });
   mocks.send.mockResolvedValue({ externalId: "accepted-1" });
 
   function query(key: string, result: () => Promise<unknown>) {
     filters[key] = [];
+    const complete = async () => {
+      const value = await result();
+      onCompleted(key);
+      return value;
+    };
     const chain = {
       select: () => chain,
       eq: (name: string, value: unknown) => { filters[key]!.push([name, value]); return chain; },
       in: () => chain,
       neq: () => chain,
-      single: result,
-      maybeSingle: result,
-      then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) => result().then(resolve, reject),
+      single: complete,
+      maybeSingle: complete,
+      then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) => complete().then(resolve, reject),
     };
     return chain;
   }
@@ -109,13 +116,15 @@ function fixture() {
       expect(state.contact.last_activity_at).toBeTruthy();
       expect(state.audit?.resourceId).toBe("message-1");
       await gates.event.promise;
+      onCompleted("event");
       return { error: null };
     }),
   };
   return { db: db as unknown as SupabaseClient, gates, started, filters, state };
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => vi.resetAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
 describe("message receipt: independent persistence without premature response", () => {
   it("starts independent effects together only after the receipt and awaits them before the event", async () => {
@@ -166,5 +175,66 @@ describe("message receipt: independent persistence without premature response", 
     expect(f.state.message).toMatchObject({ status: "sent", external_id: "accepted-1" });
     expect(mocks.send).toHaveBeenCalledOnce();
     expect(mocks.audit).toHaveBeenCalledOnce();
+  });
+});
+
+describe("slow successful sends: timing without message data", () => {
+  function timedFixture(costs: Record<string, number>) {
+    let clock = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    const f = fixture((operation) => { clock += costs[operation] ?? 0; });
+    mocks.send.mockImplementation(async () => {
+      clock += costs.send ?? 0;
+      return { externalId: "private-provider-id" };
+    });
+    for (const gate of Object.values(f.gates)) gate.resolve();
+    return f;
+  }
+
+  it("attributes elapsed time to awaited phases and logs only the allowed fields", async () => {
+    const f = timedFixture({
+      "conversation-read": 125, "message-insert": 375, send: 250,
+      "message-echo": 300, "message-receipt": 1_000, audit: 1_000, event: 75,
+    });
+    const message = await sendMessageHandler(f.db, ctx, {
+      conversation_id: CONV, type: "text", body: "private body +5511999999999",
+      media_url: "https://private.invalid/media?credential=secret",
+      metadata: { credential: "private token", contact_name: "Private Person" },
+    });
+    expect(message.status).toBe("sent");
+    expect(mocks.warn).toHaveBeenCalledExactlyOnceWith("messages.send.slow", {
+      requestId: "test", type: "text", status: "sent", total_ms: 3_125,
+      durations_ms: {
+        initial_reads: 125, insert_queued: 375, preparation: 0, recipient_and_send: 250,
+        persist_receipt: 1_300, post_effects: 1_000, event: 75,
+      },
+    });
+    const logged = JSON.stringify(mocks.warn.mock.calls);
+    for (const privateValue of [ORG, CONV, CONTACT, USER, "private", "Private", "+5511999999999"]) {
+      expect(logged).not.toContain(privateValue);
+    }
+    expect(mocks.send).toHaveBeenCalledOnce();
+  });
+
+  it.each([2_999, 3_000, 3_001])("logs only when elapsed time exceeds 3 seconds (%i ms)", async (elapsed) => {
+    const f = timedFixture({ "conversation-read": elapsed });
+    await sendMessageHandler(f.db, ctx, { conversation_id: CONV, type: "text", body: "Test" });
+    expect(mocks.warn).toHaveBeenCalledTimes(elapsed > 3_000 ? 1 : 0);
+  });
+
+  it("preserves accepted status if the logger itself fails", async () => {
+    const f = timedFixture({ send: 3_001 });
+    mocks.warn.mockImplementation(() => { throw new Error("log output unavailable"); });
+    await expect(sendMessageHandler(f.db, ctx, { conversation_id: CONV, type: "text", body: "Test" }))
+      .resolves.toMatchObject({ status: "sent", external_id: "private-provider-id" });
+    expect(mocks.send).toHaveBeenCalledOnce();
+  });
+
+  it("does not label a slow failed send as a successful send", async () => {
+    const f = timedFixture({ "conversation-read": 3_001 });
+    mocks.send.mockRejectedValue(new Error("private provider failure"));
+    await expect(sendMessageHandler(f.db, ctx, { conversation_id: CONV, type: "text", body: "Test" }))
+      .resolves.toMatchObject({ status: "failed", error_message: "private provider failure" });
+    expect(mocks.warn).not.toHaveBeenCalled();
   });
 });

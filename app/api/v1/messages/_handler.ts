@@ -27,6 +27,7 @@ import { decidirPreGoLiveDoCanalViaSupabase } from "@/lib/ai/elegibilidade/consu
 import type { Actor, HandlerCtx } from "@/lib/api/handlers/types";
 import { audit } from "@/lib/audit";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { logger } from "@/lib/logger";
 import {
   CHANNEL_SESSION_REF_COLUMNS,
   DEFAULT_CHANNEL_PROVIDER,
@@ -368,6 +369,17 @@ export async function sendMessageHandler(
   ctx: HandlerCtx,
   input: SendMessageInput,
 ): Promise<Message> {
+  const startedAt = performance.now();
+  let phaseStartedAt = startedAt;
+  const durationsMs: Partial<Record<
+    "initial_reads" | "insert_queued" | "preparation" | "recipient_and_send" |
+    "persist_receipt" | "post_effects" | "event", number
+  >> = {};
+  const finishPhase = (phase: keyof typeof durationsMs) => {
+    const finishedAt = performance.now();
+    durationsMs[phase] = Math.round(finishedAt - phaseStartedAt);
+    phaseStartedAt = finishedAt;
+  };
   if (ctx.prospectingDelivery) await assertProspectingDelivery(supabase, ctx.prospectingDelivery);
   if (ctx.meetingDelivery) await assertMeetingDeliverySupabase(supabase, ctx.meetingDelivery);
   if (ctx.approvedReply) await assertApprovedReplySupabase(supabase, ctx.approvedReply);
@@ -724,6 +736,7 @@ export async function sendMessageHandler(
     },
   };
 
+  finishPhase("initial_reads");
   let { data: created, error: insErr } = await supabase
     .from("messages")
     .insert(insertRow)
@@ -758,6 +771,7 @@ export async function sendMessageHandler(
     );
   }
   let message = created as unknown as Message;
+  finishPhase("insert_queued");
 
   // O canal vem da SESSÃO (migration 0087), não de um literal. O fallback só
   // alcança o caso em que o embed não trouxe a sessão — impossível hoje
@@ -897,6 +911,7 @@ export async function sendMessageHandler(
         });
 
         await checkBoundary();
+        finishPhase("preparation");
         externalId = adapter.sendTemplate
           ? (
               await adapter.sendTemplate({
@@ -937,6 +952,7 @@ export async function sendMessageHandler(
         }
         const filename = input.media_storage_path.split("/").pop() ?? undefined;
         await checkBoundary();
+        finishPhase("preparation");
         ({ externalId } = await adapter.send({
           beforeSend: checkBoundary,
           organizationId: ctx.organization_id,
@@ -968,6 +984,7 @@ export async function sendMessageHandler(
         const telefone = normalizePhoneForDisplay(sc.phone_number);
         const nome = sc.name?.trim() || telefone;
         await checkBoundary();
+        finishPhase("preparation");
         ({ externalId } = await adapter.send({
           beforeSend: checkBoundary,
           organizationId: ctx.organization_id,
@@ -985,6 +1002,7 @@ export async function sendMessageHandler(
         }));
       } else {
         await checkBoundary();
+        finishPhase("preparation");
         ({ externalId } = await adapter.send({
           beforeSend: checkBoundary,
           organizationId: ctx.organization_id,
@@ -996,6 +1014,9 @@ export async function sendMessageHandler(
           replyToExternalId: citada?.external_id ?? null,
         }));
       }
+      // O adapter inclui a resolução remota do destinatário e seus beforeSend.
+      // Este tempo é até o aceite do canal, não confirmação de entrega ao cliente.
+      finishPhase("recipient_and_send");
 
       // The provider has accepted the send. Preserve its receipt even if authority
       // changed after the final beforeSend cut; recognition is not another send.
@@ -1034,6 +1055,7 @@ export async function sendMessageHandler(
         .maybeSingle();
       if (updated) message = updated as unknown as Message;
       }
+      finishPhase("persist_receipt");
     } catch (err) {
       if (err instanceof StaleServiceBoundaryError || err instanceof AgendaDeferredError || err instanceof ApprovedReplyReceiptPersistenceError) throw err;
       const msg = err instanceof Error ? err.message : adapter.codes.unknownError;
@@ -1188,6 +1210,7 @@ export async function sendMessageHandler(
   for (const result of postSendResults) {
     if (result.status === "rejected") throw result.reason;
   }
+  finishPhase("post_effects");
 
   await supabase
     .rpc("emit_event", {
@@ -1201,6 +1224,23 @@ export async function sendMessageHandler(
     .then(({ error }) => {
       if (error) console.error("[messages.send] emit_event failed", error.message);
     });
+  finishPhase("event");
+
+  const totalMs = phaseStartedAt - startedAt;
+  if (totalMs > 3_000 && ["sent", "delivered", "read"].includes(message.status)) {
+    try {
+      // Lista fechada: nunca incluir mensagem, contato, telefone, mídia ou erros.
+      logger.warn("messages.send.slow", {
+        requestId: ctx.requestId,
+        type: message.type,
+        status: message.status,
+        total_ms: Math.round(totalMs),
+        durations_ms: durationsMs,
+      });
+    } catch {
+      // Telemetria não muda o resultado de um envio já aceito e persistido.
+    }
+  }
 
   return message;
 }
