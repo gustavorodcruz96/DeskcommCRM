@@ -1,6 +1,6 @@
 ---
 impacto: capacidade_nova
-secao: melhorado
+secao: alterado
 titulo: Interface BEW fiel ao preview aprovado
 ---
 
