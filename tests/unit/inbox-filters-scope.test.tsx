@@ -14,7 +14,7 @@
  * valendo — inbox filtrado, às vezes vazio, sem nada na tela dizendo por quê.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 import { InboxFilters, visibleInboxTabs, type InboxFiltersValue } from "@/components/inbox/InboxFilters";
 import type * as CanaisModule from "@/hooks/channels/useChannelSessions";
@@ -45,7 +45,9 @@ vi.mock("@/hooks/contacts/useContactTagVocabulary", () => ({
   useContactTagVocabulary: () => ({ data: tagsDoContatoRef.current }),
 }));
 vi.mock("@/hooks/inbox/useConversationCounts", () => ({
-  useConversationCounts: () => ({ data: { unassigned: 3, mine: 2, all: 5 } }),
+  useConversationCounts: () => ({
+    data: { unassigned: 3, mine: 2, outros: 4, all: 5, closed: 6, archived: 7, automatico: 8 },
+  }),
 }));
 
 const VALUE: InboxFiltersValue = { tab: "unassigned", search: "", onlyUnread: false };
@@ -104,71 +106,54 @@ describe("visibleInboxTabs (lógica pura de visões)", () => {
     const tabs = visibleInboxTabs("manager", "own_and_unassigned");
     expect(tabs).toEqual(expect.arrayContaining(["mine", "unassigned", "all"]));
   });
+  // "Outros" segue a MESMA regra de "Todas": em modo own* a RLS não mostra
+  // conversa alheia, e a aba seria uma caixa sempre vazia.
+  it("agent em modo own* NÃO vê 'others'; agent em 'all' e manager veem", () => {
+    expect(visibleInboxTabs("agent", "own_and_unassigned")).not.toContain("others");
+    expect(visibleInboxTabs("agent", "own")).not.toContain("others");
+    expect(visibleInboxTabs("agent", "all")).toContain("others");
+    expect(visibleInboxTabs("manager", "own")).toContain("others");
+  });
 });
 
 describe("InboxFilters render — 3 visões + escopo", () => {
-  it("centraliza a aba selecionada e indica as abas fora da coluna", () => {
+  // A barra é o dia a dia do vendedor (Fila, Minhas, Outros, Arquivadas); as
+  // visões de consulta ficam no "…". Pedido da operação BEW em 26/09/2026.
+  it("a barra mostra Fila, Minhas, Outros e Arquivadas; o resto vai para o menu", () => {
     setOrg("manager", "all");
-    let onResize: ResizeObserverCallback = () => {};
-    const disconnect = vi.fn();
-    vi.stubGlobal("ResizeObserver", class {
-      constructor(callback: ResizeObserverCallback) { onResize = callback; }
-      observe() {}
-      disconnect = disconnect;
-    });
-
-    try {
-      const onChange = vi.fn();
-      const { rerender } = render(<InboxFilters value={VALUE} onChange={onChange} />);
-      const list = screen.getByRole("tablist");
-      let width = 180;
-      Object.defineProperty(list, "clientWidth", { configurable: true, get: () => width });
-      Object.defineProperty(list, "scrollWidth", { configurable: true, value: 520 });
-      vi.spyOn(list, "getBoundingClientRect").mockReturnValue({ left: 0 } as DOMRect);
-      const all = screen.getByRole("tab", { name: /Todas/ });
-      Object.defineProperty(all, "offsetWidth", { configurable: true, value: 40 });
-      vi.spyOn(all, "getBoundingClientRect").mockImplementation(
-        () => ({ left: 210 - list.scrollLeft }) as DOMRect,
-      );
-      rerender(<InboxFilters value={{ ...VALUE, tab: "all" }} onChange={onChange} />);
-      expect(list.scrollLeft).toBe(140);
-      expect(screen.getByRole("button", { name: "Aba anterior" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Próxima aba" })).toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: "Próxima aba" }));
-      expect(onChange).toHaveBeenCalledWith({ ...VALUE, tab: "closed" });
-
-      width = 260;
-      act(() => onResize([], {} as ResizeObserver));
-      expect(list.scrollLeft).toBe(100);
-
-      const archived = screen.getByRole("tab", { name: /Arquivadas/ });
-      Object.defineProperty(archived, "offsetWidth", { configurable: true, value: 60 });
-      vi.spyOn(archived, "getBoundingClientRect").mockImplementation(
-        () => ({ left: 430 - list.scrollLeft }) as DOMRect,
-      );
-      rerender(<InboxFilters value={{ ...VALUE, tab: "archived" }} onChange={onChange} />);
-      expect(list.scrollLeft).toBe(260);
-      expect(screen.getByRole("button", { name: "Aba anterior" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Próxima aba" })).not.toBeInTheDocument();
-      expect(screen.getByRole("tab", { name: /Arquivadas/ })).toHaveAttribute("data-state", "active");
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    expect(disconnect).toHaveBeenCalled();
+    render(<InboxFilters value={VALUE} onChange={() => {}} />);
+    const nomes = screen.getAllByRole("tab").map((tab) => tab.textContent?.replace(/\d+/g, "").trim());
+    expect(nomes).toEqual(["Fila", "Minhas", "Outros", "Arquivadas"]);
   });
 
-  it("agent em modo own*: mostra Minhas e Fila, esconde Todas", () => {
+  it("Todas, Fechadas e Automático ficam no menu, e escolher uma troca a aba", () => {
+    setOrg("manager", "all");
+    const onChange = vi.fn();
+    render(<InboxFilters value={VALUE} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "Mais filtros de conversas" }));
+    for (const nome of [/Todas/, /Fechadas/, /Automático/]) {
+      expect(screen.getByRole("button", { name: nome })).toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole("button", { name: /Todas/ }));
+    expect(onChange).toHaveBeenCalledWith({ ...VALUE, tab: "all" });
+  });
+
+  it("agent em modo own*: mostra Minhas e Fila, esconde Outros e Todas", () => {
     setOrg("agent", "own_and_unassigned");
     render(<InboxFilters value={VALUE} onChange={() => {}} />);
     expect(screen.getByRole("tab", { name: /Minhas/ })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Fila/ })).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: /Todas/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /Outros/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mais filtros de conversas" }));
+    expect(screen.queryByRole("button", { name: /Todas/ })).not.toBeInTheDocument();
   });
 
-  it("manager: mostra Todas", () => {
+  it("manager: mostra Outros na barra e Todas no menu", () => {
     setOrg("manager", "own_and_unassigned");
     render(<InboxFilters value={VALUE} onChange={() => {}} />);
-    expect(screen.getByRole("tab", { name: /Todas/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Outros/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mais filtros de conversas" }));
+    expect(screen.getByRole("button", { name: /Todas/ })).toBeInTheDocument();
   });
 
   it("contagens por visão são renderizadas (Fila=3, Minhas=2)", () => {
@@ -176,7 +161,8 @@ describe("InboxFilters render — 3 visões + escopo", () => {
     render(<InboxFilters value={VALUE} onChange={() => {}} />);
     expect(screen.getByRole("tab", { name: /Fila/ })).toHaveTextContent("3");
     expect(screen.getByRole("tab", { name: /Minhas/ })).toHaveTextContent("2");
-    expect(screen.getByRole("tab", { name: /Todas/ })).toHaveTextContent("5");
+    expect(screen.getByRole("tab", { name: /Outros/ })).toHaveTextContent("4");
+    expect(screen.getByRole("tab", { name: /Arquivadas/ })).toHaveTextContent("7");
   });
 });
 

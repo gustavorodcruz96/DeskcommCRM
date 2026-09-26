@@ -107,9 +107,13 @@ function montar(barra: InboxFiltersValue) {
   );
 }
 
-/** O número que o operador vê na aba "Todas" — o badge é o `<span>` da aba. */
+/**
+ * O número que o operador vê numa aba da barra — o badge é o `<span>` da aba.
+ * Era "Todas"; na BEW ela mora no menu "…", e "Minhas" recebe o MESMO `n` da
+ * contagem dublada, então a pergunta do teste não muda.
+ */
 function contadorDaAbaTodas(): string | null {
-  const aba = screen.getByRole("tab", { name: /Todas/ });
+  const aba = screen.getByRole("tab", { name: /Minhas/ });
   return aba.querySelector("span")?.textContent ?? null;
 }
 

@@ -544,7 +544,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
                   <MagnifyingGlass size={18} aria-hidden />
                   <input
                     autoFocus
-                    className="min-w-0 flex-1 bg-transparent py-1 text-sm outline-none"
+                    className="min-w-0 flex-1 bg-transparent py-1 text-sm outline-hidden"
                     aria-label={t("Buscar nas mensagens carregadas")}
                     placeholder={t("Buscar nas mensagens carregadas")}
                     value={buscaMensagem}

@@ -87,6 +87,7 @@ function database(options: {
       order: () => chain,
       in: () => chain,
       not: () => chain,
+      neq: () => chain,
       gt: () => chain,
       contains: () => chain,
       maybeSingle: read,
@@ -128,7 +129,7 @@ describe("Inbox: uma validação por GET, no mesmo cliente sujeito a RLS", () =>
     if (handler) {
       expect(handler).toHaveBeenCalledWith(db.client, expect.objectContaining({ organization_id: ORG, actor: { type: "user", id: USER } }), expect.anything(), ...(handler === listMessagesHandler ? [expect.anything()] : []));
     } else {
-      expect(db.filters.filter(([table, column]) => table === "conversations" && column === "organization_id")).toEqual(Array.from({ length: 6 }, () => ["conversations", "organization_id", ORG]));
+      expect(db.filters.filter(([table, column]) => table === "conversations" && column === "organization_id")).toEqual(Array.from({ length: 7 }, () => ["conversations", "organization_id", ORG]));
     }
   });
 
