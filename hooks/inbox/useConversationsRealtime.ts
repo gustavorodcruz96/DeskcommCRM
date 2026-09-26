@@ -79,7 +79,7 @@ export interface ConversationsFilters {
   status?: StatusDeConversa | readonly StatusDeConversa[];
   /** Esconde fechadas/arquivadas — ver `exclude_finished` no schema da rota. */
   exclude_finished?: boolean;
-  assigned_to?: "me" | "unassigned" | string;
+  assigned_to?: "me" | "unassigned" | "others" | string;
   /**
    * QUEM MANDA na conversa — o filtro que as abas Fila e Automático passaram a
    * usar (migration 0203). Pergunta diferente de `status`: aquele é ciclo de

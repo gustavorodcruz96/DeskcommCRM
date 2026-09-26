@@ -105,7 +105,8 @@ export async function GET(req: NextRequest): Promise<Response> {
   };
 
   // Espelha tabToFilter (InboxLayout): unassigned = fila aberta sem dono;
-  // mine = atribuídas a mim e ainda ABERTAS; all = tudo que o usuário VÊ.
+  // mine = atribuídas a mim e ainda ABERTAS; outros = abertas com OUTRO dono
+  // humano; all = tudo que o usuário VÊ.
   //
   // O `not in (terminais)` do `mine` espelha o `exclude_finished` da aba, e o
   // espelhamento é o ponto: um badge que conta o que a aba não mostra é pior
@@ -115,7 +116,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   // convenção da regra: assume que há automático.
   const automaticoDaOrg = await orgTemAutomatico(supabase, org);
 
-  const [fila, automatico, mine, all, closed, archived] = await Promise.all([
+  const [fila, automatico, mine, outros, all, closed, archived] = await Promise.all([
     // A FILA DEIXOU DE SER "sem dono + status de espera".
     //
     // Aquele par contava como trabalho humano pendente tudo que o robô estava
@@ -132,6 +133,13 @@ export async function GET(req: NextRequest): Promise<Response> {
     countExact().eq("comando_da_conversa", "automatico"),
     countExact()
       .eq("assigned_to_user_id", user.id)
+      .not("status", "in", `(${CONVERSATION_TERMINAL_STATUSES.join(",")})`),
+    // A aba "Outros": o espelho de `mine` com o dono trocado — abertas, com dono
+    // humano, e o dono não é quem pede. Mesmo `not in (terminais)` pelo mesmo
+    // motivo: a aba esconde o que já saiu do atendimento.
+    countExact()
+      .not("assigned_to_user_id", "is", null)
+      .neq("assigned_to_user_id", user.id)
       .not("status", "in", `(${CONVERSATION_TERMINAL_STATUSES.join(",")})`),
     countExact(),
     // A aba "Fechadas" existia SEM número nenhum. Num inbox antigo, é o número
@@ -153,7 +161,13 @@ export async function GET(req: NextRequest): Promise<Response> {
   ]);
 
   const firstErr =
-    fila.error ?? automatico.error ?? mine.error ?? all.error ?? closed.error ?? archived.error;
+    fila.error ??
+    automatico.error ??
+    mine.error ??
+    outros.error ??
+    all.error ??
+    closed.error ??
+    archived.error;
   if (firstErr) {
     return fail("internal_error", firstErr.message, 500, { requestId });
   }
@@ -168,6 +182,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       // velho até recarregar.
       unassigned: fila.count ?? 0,
       mine: mine.count ?? 0,
+      outros: outros.count ?? 0,
       all: all.count ?? 0,
       closed: closed.count ?? 0,
       archived: archived.count ?? 0,

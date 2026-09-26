@@ -14,6 +14,8 @@ export interface ConversationCounts {
   /** Nome antigo de `fila`, mantido pela rota versionada. Prefira `fila`. */
   unassigned: number;
   mine: number;
+  /** A aba "Outros": abertas com OUTRO dono humano. Opcional: cache antigo não tem. */
+  outros?: number;
   all: number;
   /** Opcional pelo mesmo motivo dos de cima: cache gravado antes deste deploy não tem. */
   closed?: number;

@@ -13,6 +13,7 @@ import { ChipDeEtiqueta } from "@/components/tags/ChipDeEtiqueta";
 import { OwnerBadge } from "@/components/kanban/OwnerBadge";
 import { comandoDaConversa, esperaDaConversa } from "@/lib/inbox/comando-da-conversa";
 import { cn } from "@/lib/utils";
+import { chaveDaEtiqueta } from "@/lib/tags/cor-da-etiqueta";
 import type { ConversationWithContact } from "@/hooks/inbox/useConversationsRealtime";
 import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
@@ -121,6 +122,29 @@ function waitingLabel(
   return `${t("Aguardando")} ${formatDistanceToNowStrict(new Date(since), { addSuffix: true, locale: locale })}`;
 }
 
+/**
+ * As etiquetas da linha: as da CONVERSA e as do CONTATO, sem repetir.
+ *
+ * Eram só as do contato — a etiqueta posta na conversa (`ConversationTagsEditor`,
+ * e a IA por `crm_manage_tags`) filtrava a lista mas não aparecia nela. São as
+ * mesmas duas caixas que o filtro por tag consulta (`aplicarMarcador`). A da
+ * conversa vem primeiro: é a mais próxima do atendimento que está na tela.
+ */
+export function etiquetasDaLinha(
+  daConversa: readonly string[] | null | undefined,
+  doContato: readonly string[] | null | undefined,
+): string[] {
+  const vistas = new Set<string>();
+  const saida: string[] = [];
+  for (const tag of [...(daConversa ?? []), ...(doContato ?? [])]) {
+    const chave = chaveDaEtiqueta(tag);
+    if (chave === "" || vistas.has(chave)) continue;
+    vistas.add(chave);
+    saida.push(tag.trim());
+  }
+  return saida;
+}
+
 export function ConversationListItem({
   conversation,
   isSelected,
@@ -136,8 +160,8 @@ export function ConversationListItem({
   const c = conversation.contacts ?? null;
   const displayName = rotuloDoContato(c, t);
   const phoneFallback = c?.phone_number ? phoneForDisplay(c.phone_number) : "??";
-  const tags = c?.tags ?? [];
-  const visibleTags = tags.slice(0, 2);
+  const tags = etiquetasDaLinha(conversation.tags, c?.tags);
+  const visibleTags = tags.slice(0, 3);
   const overflow = tags.length - visibleTags.length;
   const preview = conversation.last_message_preview?.trim() || t("Sem mensagens");
   const truncated = preview.length > 60 ? `${preview.slice(0, 60)}…` : preview;
@@ -298,9 +322,19 @@ export function ConversationListItem({
         {temSelos && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
             {visibleTags.map((t) => (
-              <ChipDeEtiqueta key={t} tag={t} className="h-4 px-1.5 text-[10px]" />
+              // Chip de leitura rápida (pedido da operação BEW): caixa alta, peso
+              // forte e canto reto, para a cor da etiqueta aparecer de relance.
+              <ChipDeEtiqueta
+                key={t}
+                tag={t}
+                className="h-5 rounded-md px-1.5 text-[10px] leading-none font-bold tracking-wide uppercase"
+              />
             ))}
-            {overflow > 0 && <span className="text-[10px] text-text-muted">+{overflow}</span>}
+            {overflow > 0 && (
+              <span className="text-[10px] font-semibold text-text-muted" title={tags.slice(3).join(", ")}>
+                +{overflow}
+              </span>
+            )}
             {mostrarAtendente && comando.quem === "humano" && (
               <OwnerBadge ownerKind="user" ownerName={comando.nome ?? t("Atendente")} compacto />
             )}

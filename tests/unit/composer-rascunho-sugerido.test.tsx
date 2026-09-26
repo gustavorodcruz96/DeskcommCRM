@@ -135,6 +135,8 @@ describe("Composer + rascunho sugerido", () => {
       rascunho: sugerido,
     });
 
+    // Na interface BEW a troca de modo mora no menu "Mais opções" do composer.
+    fireEvent.click(screen.getByRole("button", { name: /mais opções/i }));
     fireEvent.click(screen.getByRole("button", { name: /nota interna/i }));
     // Em modo nota a faixa some — e o consumo continua não tendo acontecido.
     expect(screen.queryByTestId("aviso-rascunho")).not.toBeInTheDocument();

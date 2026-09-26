@@ -988,6 +988,7 @@ export const DICIONARIO: Traducoes = {
   "Não lidos": { es: "No leídos" },
   Fila: { es: "Cola" },
   Minhas: { es: "Mías" },
+  Outros: { es: "Otros" },
   Todas: { es: "Todas" },
   Fechadas: { es: "Cerradas" },
   // O estado `archived` é terminal como `closed`, mas conta outra coisa: é a

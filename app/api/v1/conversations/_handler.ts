@@ -225,17 +225,23 @@ export async function listConversationsHandler(
   // barreira. Consulta nova só para os não lidos nasceria sem barreira nenhuma.
   if (q.unread) query = query.gt("unread_count_for_assignee", 0);
 
-  if (q.assigned_to === "me") {
+  if (q.assigned_to === "me" || q.assigned_to === "others") {
     if (ctx.actor.type !== "user") {
       throw new ApiError(
         400,
         "invalid_request",
         undefined,
         ctx.requestId,
-        '"assigned_to=me" requer ator humano.',
+        `"assigned_to=${q.assigned_to}" requer ator humano.`,
       );
     }
-    query = query.eq("assigned_to_user_id", ctx.actor.id);
+    // `others`: tem dono humano E o dono não é quem pede. O `not is null` vem
+    // antes porque `neq` sozinho não devolve linha com dono nulo em SQL, mas
+    // deixar isso implícito seria a próxima leitura errada da aba "Outros".
+    query =
+      q.assigned_to === "me"
+        ? query.eq("assigned_to_user_id", ctx.actor.id)
+        : query.not("assigned_to_user_id", "is", null).neq("assigned_to_user_id", ctx.actor.id);
   } else if (q.assigned_to === "unassigned") {
     query = query.is("assigned_to_user_id", null);
   } else if (q.assigned_to) {

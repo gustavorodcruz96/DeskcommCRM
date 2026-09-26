@@ -110,6 +110,9 @@ function fixture(onCompleted: (operation: string) => void = () => {}) {
     rpc: vi.fn(async (name: string, args: Row) => {
       expect(name).toBe("emit_event");
       expect(args.p_organization_id).toBe(ORG);
+      // O envio que FALHA emite `message.failed` (v1.53, `emitirFalhaDeEntrega`)
+      // sem passar pelos carimbos de sucesso — a ordem abaixo é só do recibo.
+      if (args.p_event_type === "message.failed") return { error: null };
       started.event = true;
       // Consumer must only wake after all observable state and audit persisted.
       expect(state.conversation.last_outbound_at).toBeTruthy();

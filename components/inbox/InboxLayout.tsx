@@ -90,6 +90,11 @@ export function tabToFilter(
       // `Fechar` muda o status mas não solta o dono (de propósito: quem atendeu
       // é histórico). O lugar de "minhas fechadas" é a aba Fechadas.
       return { assigned_to: "me", exclude_finished: true };
+    case "others":
+      // As conversas dos OUTROS vendedores: o espelho de "Minhas" com o dono
+      // trocado. Sem dono não entra (isso é a Fila) e o automático também não
+      // (dono humano é `assigned_to_user_id`, que o robô nunca preenche).
+      return { assigned_to: "others", exclude_finished: true };
     case "closed":
       return { status: "closed" };
     case "archived":
@@ -112,7 +117,15 @@ export function tabToFilter(
   }
 }
 
-const FILTER_TABS: InboxTab[] = ["unassigned", "mine", "all", "closed", "archived", "ai"];
+const FILTER_TABS: InboxTab[] = [
+  "unassigned",
+  "mine",
+  "others",
+  "all",
+  "closed",
+  "archived",
+  "ai",
+];
 
 /**
  * Lê ?filter= (G4-02, deep-link). ?filter=all é HONRADO mesmo para agent — a

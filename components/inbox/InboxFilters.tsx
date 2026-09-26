@@ -22,11 +22,13 @@ import { useConversationTagVocabulary } from "@/hooks/inbox/useConversationTags"
 import { useConversationCounts } from "@/hooks/inbox/useConversationCounts";
 import type { Role, VisibilityMode } from "@/lib/auth/types";
 
-export type InboxTab = "unassigned" | "mine" | "all" | "closed" | "archived" | "ai";
+export type InboxTab = "unassigned" | "mine" | "others" | "all" | "closed" | "archived" | "ai";
 
 const INBOX_TABS: { value: InboxTab; label: string }[] = [
   { value: "unassigned", label: "Fila" },
   { value: "mine", label: "Minhas" },
+  // As conversas dos outros vendedores — o que o time está atendendo e não é meu.
+  { value: "others", label: "Outros" },
   { value: "all", label: "Todas" },
   { value: "closed", label: "Fechadas" },
   // "Arquivadas" fica ao lado de "Fechadas" porque as duas são passado — e
@@ -43,14 +45,26 @@ const INBOX_TABS: { value: InboxTab; label: string }[] = [
 ];
 
 /**
- * Visões visíveis por papel + escopo (G4-02, acceptance 1). 'Todas' fica oculta
- * para `agent` quando visibility_mode ≠ 'all'; viewer/manager/admin sempre veem.
- * É apenas cosmético — a RLS (G4-01) é quem garante o escopo mesmo via ?filter=all.
+ * Visões visíveis por papel + escopo (G4-02, acceptance 1). 'Todas' e 'Outros'
+ * ficam ocultas para `agent` quando visibility_mode ≠ 'all' — nesse modo a RLS
+ * não mostra conversa alheia, e 'Outros' seria uma aba sempre vazia.
+ * viewer/manager/admin sempre veem. É apenas cosmético — a RLS (G4-01) é quem
+ * garante o escopo mesmo via ?filter=all.
  */
 export function visibleInboxTabs(role: Role, mode: VisibilityMode | undefined): InboxTab[] {
   const hideAll = role === "agent" && mode !== "all";
-  return INBOX_TABS.filter((t) => !(t.value === "all" && hideAll)).map((t) => t.value);
+  return INBOX_TABS.filter(
+    (t) => !((t.value === "all" || t.value === "others") && hideAll),
+  ).map((t) => t.value);
 }
+
+/**
+ * O que fica NA BARRA e o que vai para o "…". A barra é o dia a dia do vendedor
+ * (pedido da operação BEW, 26/09/2026): Fila = lead novo, Minhas = meu, Outros =
+ * dos colegas, Arquivadas = concluído que saiu do atendimento. O resto é consulta.
+ */
+const ABAS_DA_BARRA: InboxTab[] = ["unassigned", "mine", "others", "archived"];
+const ABAS_DO_MENU: InboxTab[] = ["all", "closed", "ai"];
 
 export interface InboxFiltersValue {
   tab: InboxTab;
@@ -140,6 +154,7 @@ export function InboxFilters({ value, onChange }: Props) {
     // aparece na tela é trabalho feito que ninguém vê.
     ai: counts?.automatico,
     mine: counts?.mine,
+    others: counts?.outros,
     all: counts?.all,
     closed: counts?.closed,
     archived: counts?.archived,
@@ -363,7 +378,7 @@ export function InboxFilters({ value, onChange }: Props) {
         className="crm-filter-tabs flex items-center gap-2 px-3"
       >
         <TabsList className="h-auto min-w-0 flex-1 [scrollbar-width:none] justify-between gap-2 rounded-none bg-transparent p-0">
-          {(["all", "unassigned", "mine"] as InboxTab[])
+          {ABAS_DA_BARRA
             .filter((tab) => tabs.includes(tab))
             .map((tab) => {
               const meta = INBOX_TABS.find((t) => t.value === tab)!;
@@ -404,13 +419,13 @@ export function InboxFilters({ value, onChange }: Props) {
               aria-label={t("Mais filtros de conversas")}
             >
               <DotsThree size={18} />
-              {["closed", "archived", "ai"].includes(value.tab) && (
+              {ABAS_DO_MENU.includes(value.tab) && (
                 <span>{t(INBOX_TABS.find((tab) => tab.value === value.tab)!.label)}</span>
               )}
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" className="crm-conversation-menu w-56 p-2">
-            {(["closed", "archived", "ai"] as InboxTab[])
+            {ABAS_DO_MENU
               .filter((tab) => tabs.includes(tab))
               .map((tab) => (
                 <button
