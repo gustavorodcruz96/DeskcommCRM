@@ -261,7 +261,7 @@ export function MessageBubble({
                 disabled={ocupado}
                 className={cn(
                   "absolute top-1 right-1 z-10 rounded-md p-0.5 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-1",
-                  "opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+                  "opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100",
                   isOutbound
                     ? "text-primary-foreground hover:bg-primary-foreground/15"
                     : "text-muted-foreground hover:bg-background/70",
