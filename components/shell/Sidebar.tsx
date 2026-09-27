@@ -108,6 +108,14 @@ export function SidebarContent({ collapsed, onNavigate }: SidebarContentProps) {
    * descer para ele — que é o contrário do que a precedência por campo promete.
    */
   const logo = activeOrg?.marca?.logoUrl || brand.logoUrl;
+  // A versão para fundo escuro, com a mesma precedência da marca acima: a org
+  // que enviou logo próprio sem versão escura não herda a do produto.
+  const logoEscuro =
+    activeOrg?.marca?.logoDarkUrl !== undefined
+      ? activeOrg.marca.logoDarkUrl
+      : activeOrg?.marca?.logoUrl
+        ? null
+        : brand.logoDarkUrl;
   const marcaDoProduto = marcaEhADoProduto({ name: nome, logoUrl: logo ?? null });
 
   return (
@@ -125,12 +133,27 @@ export function SidebarContent({ collapsed, onNavigate }: SidebarContentProps) {
           className="flex min-w-0 flex-1 items-center gap-3"
         >
           {logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logo}
-              alt={nome}
-              className="app-brand-image h-10 w-10 shrink-0 rounded-xl object-contain"
-            />
+            // Sem versão escura, o logo fica sobre um chip claro no tema escuro:
+            // arte escura em fundo escuro some.
+            <span className={cn("shrink-0 rounded-xl", !logoEscuro && "dark:bg-white")}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logo}
+                alt={nome}
+                className={cn(
+                  "app-brand-image h-10 w-10 rounded-xl object-contain",
+                  logoEscuro && "dark:hidden",
+                )}
+              />
+              {logoEscuro && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoEscuro}
+                  alt={nome}
+                  className="app-brand-image hidden h-10 w-10 rounded-xl object-contain dark:block"
+                />
+              )}
+            </span>
           ) : marcaDoProduto ? (
             <SimboloDoProduto nome={nome} className="h-10 w-10 shrink-0" />
           ) : collapsed ? (
@@ -191,15 +214,19 @@ export function SidebarContent({ collapsed, onNavigate }: SidebarContentProps) {
                   aria-label={collapsed ? t(group.label) : undefined}
                   className="space-y-1"
                 >
-                  {items.map((item) => {
+                  {items.map((original) => {
+                    // Na navegação BEW o Inbox se chama "Conversas".
+                    const item =
+                      original.href === "/app/inbox"
+                        ? { ...original, label: "Conversas" }
+                        : original;
                     const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
                     const Icon = item.icon;
-                    const label = item.href === "/app/inbox" ? t("Conversas") : t(item.label);
                     return (
                       <li key={item.href}>
                         <Link
                           href={item.href}
-                          title={collapsed ? label : undefined}
+                          title={collapsed ? t(item.label) : undefined}
                           aria-current={isActive ? "page" : undefined}
                           onClick={onNavigate}
                           className={cn(
@@ -211,7 +238,7 @@ export function SidebarContent({ collapsed, onNavigate }: SidebarContentProps) {
                           )}
                         >
                           <Icon size={20} weight="regular" aria-hidden />
-                          {!collapsed && <span className="truncate">{label}</span>}
+                          {!collapsed && <span className="truncate">{t(item.label)}</span>}
                           <NavigationPending />
                           {item.healthDot && (
                             <ConnectionHealthDot

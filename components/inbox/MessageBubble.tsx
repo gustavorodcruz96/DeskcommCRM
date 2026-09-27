@@ -172,8 +172,7 @@ export function MessageBubble({
     // não faz join: o que não está na linha não aparece em lugar nenhum.
     const emNomeDe = message.sent_on_behalf_of_user_id
       ? (message.metadata?.sent_on_behalf as
-          | { user_name?: string | null; token_name?: string | null }
-          | undefined)
+          { user_name?: string | null; token_name?: string | null } | undefined)
       : undefined;
     if (emNomeDe) {
       const nome = emNomeDe.user_name?.trim() || t("Atendente");

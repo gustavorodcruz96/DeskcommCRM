@@ -255,13 +255,12 @@ export function ConversationListItem({
           )}
           aria-hidden
         />
-        {mostrarCanal && (
-          <ChannelLogo
-            channel={canal}
-            size={16}
-            className="absolute -right-1 -bottom-1 h-5 w-5 rounded-full bg-background ring-2 ring-background"
-          />
-        )}
+        {/* O tipo do canal aparece sempre; o número/nome da conexão só com mais de uma. */}
+        <ChannelLogo
+          channel={canal}
+          size={16}
+          className="absolute -right-1 -bottom-1 h-5 w-5 rounded-full bg-background ring-2 ring-background"
+        />
       </div>
 
       <div className="min-w-0 flex-1">
@@ -331,7 +330,10 @@ export function ConversationListItem({
               />
             ))}
             {overflow > 0 && (
-              <span className="text-[10px] font-semibold text-text-muted" title={tags.slice(3).join(", ")}>
+              <span
+                className="text-[10px] font-semibold text-text-muted"
+                title={tags.slice(3).join(", ")}
+              >
                 +{overflow}
               </span>
             )}
