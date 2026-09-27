@@ -31,7 +31,12 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 import { apiClient } from "@/lib/api/client";
 import { useAuth } from "@/hooks/auth/AuthProvider";
-import { chaveDaEtiqueta, coresDoVocabulario, type CoresPorEtiqueta } from "@/lib/tags/cor-da-etiqueta";
+import {
+  chaveDaEtiqueta,
+  corAutomaticaDaEtiqueta,
+  coresDoVocabulario,
+  type CoresPorEtiqueta,
+} from "@/lib/tags/cor-da-etiqueta";
 
 /**
  * A chave do cache, exportada para quem ESCREVE poder invalidar: a tela de Tags
@@ -47,7 +52,10 @@ export function invalidarCoresDasEtiquetas(queryClient: QueryClient): void {
 
 const VAZIO: CoresPorEtiqueta = {};
 
-const Ctx = createContext<CoresPorEtiqueta>(VAZIO);
+// `null` = o vocabulário ainda não chegou (carregando, falhou ou fora do
+// provider). A cor automática só entra com o mapa em mãos: antes disso o chip
+// piscaria da cor automática para a escolhida em Tags.
+const Ctx = createContext<CoresPorEtiqueta | null>(null);
 
 export function ProvedorDeCoresDasEtiquetas({ children }: { children: ReactNode }) {
   const { activeOrg } = useAuth();
@@ -66,13 +74,13 @@ export function ProvedorDeCoresDasEtiquetas({ children }: { children: ReactNode 
       return coresDoVocabulario({ tags: res.data });
     },
   });
-  const valor = useMemo(() => data ?? VAZIO, [data]);
+  const valor = useMemo(() => data ?? null, [data]);
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }
 
 /** O mapa inteiro — para quem desenha uma lista de opções (filtros). */
 export function useCoresDasEtiquetas(): CoresPorEtiqueta {
-  return useContext(Ctx);
+  return useContext(Ctx) ?? VAZIO;
 }
 
 /** A cor de UMA etiqueta, ou `null`. */
@@ -80,4 +88,14 @@ export function useCorDaEtiqueta(tag: string | null | undefined): string | null 
   const mapa = useCoresDasEtiquetas();
   if (!tag) return null;
   return mapa[chaveDaEtiqueta(tag)] ?? null;
+}
+
+/**
+ * A cor do CHIP: a escolhida em Tags ou, com o vocabulário já lido, a automática.
+ * Enquanto o vocabulário não chega (ou se a leitura falha), cinza — como antes.
+ */
+export function useCorDoChipDaEtiqueta(tag: string | null | undefined): string | null {
+  const mapa = useContext(Ctx);
+  if (!tag || mapa === null) return null;
+  return mapa[chaveDaEtiqueta(tag)] ?? corAutomaticaDaEtiqueta(tag);
 }

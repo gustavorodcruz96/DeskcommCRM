@@ -18,18 +18,19 @@
  * quem escolhe a etiqueta é o caminho mais curto para um chip ilegível, e quem
  * paga é quem atende, não quem configurou.
  *
- * ─── Sem cor, exatamente o que existia ──────────────────────────────────────
+ * ─── Sem cor escolhida, a cor automática ────────────────────────────────────
  *
- * `variant="secondary"` continua sendo o padrão: a fatia acrescenta cor, não
- * redesenha o chip. Etiqueta sem cor sai idêntica à de antes — inclusive nos
- * testes que já contam com o token.
+ * Com o vocabulário lido, etiqueta sem cor escolhida em Tags ganha a cor
+ * automática derivada do nome (`corAutomaticaDaEtiqueta`) — cinza sumia na lista
+ * de atendimento. Enquanto o vocabulário não chega, se a leitura falha ou fora do
+ * provider, `variant="secondary"` continua sendo o padrão, sem estilo inline.
  */
 import type { ReactNode } from "react";
 
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { estiloDoChip } from "@/lib/tags/cor-da-etiqueta";
-import { useCorDaEtiqueta } from "@/components/tags/CoresDasEtiquetas";
+import { useCorDoChipDaEtiqueta } from "@/components/tags/CoresDasEtiquetas";
 
 interface Props extends Omit<BadgeProps, "children"> {
   /** O nome como está no dado — a cor é buscada pela chave canônica. */
@@ -46,7 +47,7 @@ interface Props extends Omit<BadgeProps, "children"> {
 }
 
 export function ChipDeEtiqueta({ tag, cor, className, children, ...props }: Props) {
-  const corDoProvider = useCorDaEtiqueta(tag);
+  const corDoProvider = useCorDoChipDaEtiqueta(tag);
   const efetiva = cor === undefined ? corDoProvider : cor;
   return (
     <Badge variant="secondary" className={cn(className)} style={estiloDoChip(efetiva)} {...props}>

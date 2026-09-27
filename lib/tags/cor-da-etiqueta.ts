@@ -50,6 +50,27 @@ export const PALETA_DE_ETIQUETAS: readonly string[] = [
   "#6f6f6f",
 ];
 
+/**
+ * A cor AUTOMÁTICA de quem nunca escolheu cor (pedido da operação BEW, 27/09/2026):
+ * na lista de atendimento, etiqueta cinza some entre as outras. Deriva do NOME
+ * (FNV-1a sobre `chaveDaEtiqueta`), então a mesma etiqueta tem sempre a mesma cor
+ * em qualquer tela e sessão, sem gravar nada no banco. O cinza da paleta fica de
+ * fora: ele é a cor de "não sei", não de uma etiqueta. A cor escolhida em Tags
+ * continua vencendo — isto só preenche o vazio.
+ */
+const PALETA_AUTOMATICA = PALETA_DE_ETIQUETAS.filter((cor) => cor !== "#6f6f6f");
+
+export function corAutomaticaDaEtiqueta(tag: string): string | null {
+  const chave = chaveDaEtiqueta(tag);
+  if (chave === "") return null;
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < chave.length; i++) {
+    hash ^= chave.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return PALETA_AUTOMATICA[hash % PALETA_AUTOMATICA.length] ?? null;
+}
+
 /** Etiqueta normalizada → cor. A chave é sempre `chaveDaEtiqueta`. */
 export type CoresPorEtiqueta = Readonly<Record<string, string>>;
 

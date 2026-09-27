@@ -78,13 +78,23 @@ describe("ChipDeEtiqueta", () => {
     expect(pintado(screen.getByText("vip"))).toContain("color:rgb(255,255,255)");
   });
 
-  it("etiqueta sem cor sai exatamente como saía antes: cinza, sem estilo inline", async () => {
-    get.mockResolvedValue({ data: [{ tag: "vip", cor: "#0091ff" }] });
+  it("etiqueta sem cor escolhida ganha a cor automática — só depois do vocabulário lido", async () => {
+    let responder: (v: unknown) => void = () => {};
+    get.mockReturnValue(new Promise((r) => (responder = r)));
     montar(<ChipDeEtiqueta tag="obra" />);
 
+    // Carregando: cinza, para não piscar da automática para a escolhida.
     const chip = screen.getByText("obra");
-    await waitFor(() => expect(get).toHaveBeenCalled());
     expect(chip.getAttribute("style")).toBeNull();
+
+    responder({ data: [{ tag: "vip", cor: "#0091ff" }] });
+    await waitFor(() => expect(pintado(chip)).toContain("background-color"));
+  });
+
+  it("a cor escolhida em Tags vence a automática", async () => {
+    get.mockResolvedValue({ data: [{ tag: "obra", cor: "#e54d2e" }] });
+    montar(<ChipDeEtiqueta tag="obra" />);
+    await waitFor(() => expect(pintado(screen.getByText("obra"))).toContain("rgb(229,77,46)"));
   });
 
   it("a cor por PROP vence o mapa — é o caso da lista da tela de Tags", async () => {
