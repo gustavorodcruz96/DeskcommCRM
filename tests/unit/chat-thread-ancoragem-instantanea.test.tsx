@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Message } from "@/lib/types/messaging";
@@ -113,5 +113,35 @@ describe("ChatThread: ancoragem ao fim", () => {
     rolar.mockClear();
     rerender(<ChatThread conversationId="c-2" />);
     expect(comportamentos()).toEqual(["auto"]);
+  });
+});
+
+describe("ChatThread: busca no histórico carregado", () => {
+  it("conta resultados visíveis e exclui mensagens apagadas ou ocultas", () => {
+    qc = new QueryClient();
+    Element.prototype.scrollIntoView = rolar;
+    estado.mensagens = [
+      { ...mensagem(1), body: "MacBook disponível", metadata: {} },
+      {
+        ...mensagem(2),
+        body: "MacBook apagado",
+        revoked_at: new Date().toISOString(),
+        metadata: {},
+      },
+      {
+        ...mensagem(3),
+        body: "MacBook oculto",
+        metadata: { crm_hidden_at: new Date().toISOString() },
+      },
+    ];
+    const { rerender } = render(<ChatThread conversationId="c-1" searchTerm="macbook" />, {
+      wrapper,
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("1 resultados nas mensagens carregadas");
+    rerender(<ChatThread conversationId="c-1" searchTerm="inexistente" />);
+    expect(screen.getByRole("status")).toHaveTextContent("0 resultados nas mensagens carregadas");
+    rerender(<ChatThread conversationId="c-1" searchTerm="" />);
+    expect(screen.queryByRole("status")).toBeNull();
+    Element.prototype.scrollIntoView = original;
   });
 });

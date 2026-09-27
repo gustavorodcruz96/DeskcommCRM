@@ -6,7 +6,7 @@ import { useLocaleDeData } from "@/hooks/i18n/useLocaleDeData";
 import { useMemo } from "react";
 import { format, isToday, isYesterday } from "date-fns";
 import { useT } from "@/hooks/i18n/useT";
-import { ChatCircle, Users, Storefront, Robot, Gear } from "@/lib/ui/icons";
+import { WhatsappLogo, Users, Storefront, Robot, Gear } from "@/lib/ui/icons";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,14 +22,18 @@ interface Props {
 }
 
 const ICON_MAP: Record<string, PhosphorIcon> = {
-  whatsapp: ChatCircle,
+  whatsapp: WhatsappLogo,
   crm: Users,
   nuvemshop: Storefront,
   ai: Robot,
   system: Gear,
 };
 
-function dayHeader(d: Date, t: (texto: string) => string = (texto) => texto, locale: Locale): string {
+function dayHeader(
+  d: Date,
+  t: (texto: string) => string = (texto) => texto,
+  locale: Locale,
+): string {
   if (isToday(d)) return t("Hoje");
   if (isYesterday(d)) return t("Ontem");
   return format(d, "dd/MM/yyyy", { locale: locale });
@@ -104,7 +108,7 @@ export function TimelineView({ contactId, types }: Props) {
         const date = new Date(key);
         return (
           <section key={key} className="space-y-2">
-            <h3 className="sticky top-0 z-10 bg-background py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="sticky top-0 z-10 bg-background py-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               {dayHeader(date, t, localeDaData)}
             </h3>
             <ul className="space-y-2">
@@ -135,12 +139,14 @@ export function TimelineView({ contactId, types }: Props) {
                       className={cn(
                         "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-accent",
                         forma === "filled" && "rounded-full bg-accent-soft",
-                        forma === "ring" && "rounded-full border border-accent bg-surface ring-1 ring-inset ring-accent/40",
+                        forma === "ring" &&
+                          "rounded-full border border-accent bg-surface ring-1 ring-accent/40 ring-inset",
                         // Sistema, automação ou autor não registrado: o mesmo
                         // tracejado do "Sem responsável" no card. Três formas nas
                         // duas telas — quem distingue "automação" de "não sei
                         // quem" é o texto ao lado, não um quarto desenho.
-                        forma === "dashed" && "rounded-full border border-dashed border-border-strong",
+                        forma === "dashed" &&
+                          "rounded-full border border-dashed border-border-strong",
                       )}
                       aria-hidden
                     >

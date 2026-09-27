@@ -65,8 +65,11 @@ describe("Composer + modo nota interna", () => {
   it("alterna pra modo nota interna: some anexo/rascunho/áudio, muda placeholder", () => {
     renderComposer();
     expect(screen.getByRole("button", { name: /anexar/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
+    fireEvent.click(screen.getByRole("button", { name: "Assistência do agente" }));
     expect(screen.getByRole("button", { name: /sugerir resposta/i })).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
     fireEvent.click(screen.getByRole("button", { name: /nota interna/i }));
 
     expect(screen.queryByRole("button", { name: /anexar/i })).not.toBeInTheDocument();
@@ -77,9 +80,12 @@ describe("Composer + modo nota interna", () => {
 
   it("modo nota interna: enviar chama useCreateNote e NÃO useSendMessage", () => {
     renderComposer();
+    fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
     fireEvent.click(screen.getByRole("button", { name: /nota interna/i }));
 
-    fireEvent.change(screen.getByPlaceholderText(/nota interna/i), { target: { value: "cliente ligou reclamando" } });
+    fireEvent.change(screen.getByPlaceholderText(/nota interna/i), {
+      target: { value: "cliente ligou reclamando" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /^enviar$/i }));
 
     expect(createNoteMock).toHaveBeenCalledWith(

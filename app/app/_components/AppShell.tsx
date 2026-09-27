@@ -11,7 +11,6 @@ import { useNotifyOpenFromServiceWorker } from "@/lib/notifications/notify_open"
 import { estiloDaReserva, useOcupacaoDoRodape } from "@/lib/ui/rodape-ocupado";
 
 interface AppShellProps {
-  sidebarCollapsed: boolean;
   /**
    * A pessoa pode atender (agent+)? Vem do papel resolvido no layout, e não de
    * uma consulta desta casca.
@@ -24,7 +23,7 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-export function AppShell({ sidebarCollapsed, podeAtender, children }: AppShellProps) {
+export function AppShell({ podeAtender, children }: AppShellProps) {
   useInboundMessageAlerts();
   useInboundCallAlerts();
   useCrmAlerts();
@@ -40,10 +39,10 @@ export function AppShell({ sidebarCollapsed, podeAtender, children }: AppShellPr
   // decide a faixa que o conteúdo perde, e ninguém mais mede isso por fora.
   const ocupacaoDoRodape = useOcupacaoDoRodape();
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="crm-app-shell flex min-h-screen w-full bg-background">
       <BarraDeProgressoNavegacao />
       <div className="hidden md:block">
-        <Sidebar collapsed={sidebarCollapsed} />
+        <Sidebar />
       </div>
       {/*
         `min-w-0` é o que permite a coluna de conteúdo ENCOLHER. Um flex item
@@ -64,7 +63,7 @@ export function AppShell({ sidebarCollapsed, podeAtender, children }: AppShellPr
         SEGUNDA medida da mesma coisa — a que discordava e deixava a barra por
         cima da lista.
       */}
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+      <div className="crm-shell-content flex min-h-screen min-w-0 flex-1 flex-col">
         <TopBar />
         {/*
           O RODAPÉ DESCONTA O QUE AS PEÇAS FIXAS OCUPAM (issue #1305).
@@ -77,7 +76,7 @@ export function AppShell({ sidebarCollapsed, podeAtender, children }: AppShellPr
           aparece no inspetor quando alguém pergunta quanto o rodapé perdeu.
         */}
         <main
-          className="flex-1 overflow-auto p-6"
+          className="crm-main flex-1 overflow-auto p-6"
           style={estiloDaReserva(ocupacaoDoRodape)}
           data-rodape-ocupado={ocupacaoDoRodape}
         >

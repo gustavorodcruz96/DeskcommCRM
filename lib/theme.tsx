@@ -22,14 +22,14 @@ type ThemeContextValue = {
 const ThemeContext = React.createContext<ThemeContextValue | null>(null);
 
 function readStoredTheme(): Theme {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return "light";
   try {
     const v = window.localStorage.getItem(STORAGE_KEY);
     if (v === "light" || v === "dark" || v === "system") return v;
   } catch {
     // localStorage indisponível (modo privado, sandbox) — segue com default.
   }
-  return "system";
+  return "light";
 }
 
 function getSystemTheme(): ResolvedTheme {
@@ -48,7 +48,7 @@ function applyTheme(resolved: ResolvedTheme) {
  * A primeira renderização do CLIENTE é a renderização de hidratação — a
  * mesma que o React compara contra o HTML que o servidor mandou. O servidor
  * roda com `window === undefined`, então `readStoredTheme()`/`getSystemTheme()`
- * sempre devolvem "system"/"light" lá. Um `useState(() => readStoredTheme())`
+ * hoje devolvem "light"/"light" lá. Um `useState(() => readStoredTheme())`
  * reexecuta esse inicializador na hidratação — agora com `window` de verdade
  * — e um usuário com tema salvo "dark" produzia, nesse instante, uma
  * primeira renderização do cliente dizendo "dark" contra o "system" que o
@@ -78,7 +78,7 @@ function getTemaSnapshot(): Theme {
   return temaEmCache;
 }
 function getTemaSnapshotDoServidor(): Theme {
-  return "system";
+  return "light";
 }
 function inscreverEmTema(ouvinte: Ouvinte): () => void {
   ouvintesDeTema.add(ouvinte);
@@ -120,7 +120,11 @@ function inscreverEmSistema(ouvinte: Ouvinte): () => void {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const theme = React.useSyncExternalStore(inscreverEmTema, getTemaSnapshot, getTemaSnapshotDoServidor);
+  const theme = React.useSyncExternalStore(
+    inscreverEmTema,
+    getTemaSnapshot,
+    getTemaSnapshotDoServidor,
+  );
   const systemTheme = React.useSyncExternalStore(
     inscreverEmSistema,
     getSistemaSnapshot,

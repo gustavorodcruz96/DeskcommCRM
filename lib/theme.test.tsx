@@ -16,7 +16,7 @@
  * — e como `ThemeToggle` deriva o ícone e o `aria-label` de `theme`, a
  * divergência aparecia literalmente no atributo, reproduzindo byte a byte o
  * "Runtime Error: hydration mismatch" relatado (aria-label "Tema: dark" no
- * cliente contra "Tema: system" no servidor, ícone Moon contra MonitorPlay).
+ * cliente contra "Tema: light" no servidor, ícone Moon contra MonitorPlay).
  *
  * O comentário que o código tinha ("não causa hydration mismatch porque o
  * inline script no layout já setou o data-theme antes do paint") confundia
@@ -45,7 +45,7 @@
  * `useState<ResolvedTheme>(() => getSystemTheme())` (o defeito de volta, com
  * o conserto no lugar): as duas asserções de igualdade ficam vermelhas —
  * `doPrimeiraRenderCliente` passa a dizer "Tema: dark" enquanto `doServidor`
- * continua dizendo "Tema: system".
+ * continua dizendo "Tema: light".
  */
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -118,16 +118,16 @@ describe("o tema não diverge entre o SSR e a primeira renderização do cliente
     const doServidor = renderizarComoServidor();
     const doCliente = renderizarComoPrimeiraPassadaDoCliente();
 
-    // Os dois precisam dizer "system" — é o valor que `readStoredTheme()`
+    // Os dois precisam dizer "light" — é o valor que `readStoredTheme()`
     // devolve sem `window`, e é o que a hidratação tem de bater ANTES do
     // efeito que sincroniza com o localStorage rodar.
-    expect(doServidor).toContain("Tema: system");
+    expect(doServidor).toContain("Tema: light");
     expect(
       doCliente,
       "A primeira renderização do cliente leu o localStorage direto no " +
         "inicializador do useState, produzindo 'Tema: dark' — diferente do " +
-        "que o servidor mandou ('Tema: system'). É o hydration mismatch.",
-    ).toContain("Tema: system");
+        "que o servidor mandou ('Tema: light'). É o hydration mismatch.",
+    ).toContain("Tema: light");
     expect(doCliente).toBe(doServidor);
   });
 
@@ -153,4 +153,25 @@ describe("o tema não diverge entre o SSR e a primeira renderização do cliente
     });
     expect(container.innerHTML).toContain("Tema: dark");
   });
+});
+
+// Sem preferência, a apresentação aprovada é clara; a escolha explícita continua valendo.
+describe("preferência de apresentação", () => {
+  it.each([undefined, "dark", "system"])(
+    "respeita a preferência %s em um sistema escuro",
+    (saved) => {
+      vi.spyOn(window, "matchMedia").mockReturnValue({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as MediaQueryList);
+      if (saved) window.localStorage.setItem(CHAVE, saved);
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const root = createRoot(container);
+      act(() => root.render(ARVORE));
+      expect(document.documentElement.getAttribute("data-theme")).toBe(saved ? "dark" : "light");
+      act(() => root.unmount());
+    },
+  );
 });

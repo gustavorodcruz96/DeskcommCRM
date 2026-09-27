@@ -102,6 +102,7 @@ describe("ConversationHeader — chamada de voz na Inbox", () => {
     };
     render(<ConversationHeader conversation={atual} />);
 
+    await user.click(screen.getByRole("button", { name: "Mais ações da conversa" }));
     await user.click(screen.getByRole("button", { name: "Chamar" }));
     expect(startCall).toHaveBeenCalledWith("contato-1");
   });
@@ -128,6 +129,9 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
     const user = userEvent.setup();
     render(<ConversationHeader conversation={conversa("open")} />);
 
+    if (!screen.queryByRole("button", { name: "Fechar" })) {
+      await user.click(screen.getByRole("button", { name: "Mais ações da conversa" }));
+    }
     await user.click(screen.getByRole("button", { name: "Fechar" }));
 
     const dialogo = await screen.findByRole("alertdialog");
@@ -138,6 +142,9 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(closeMutate).not.toHaveBeenCalled();
 
+    if (!screen.queryByRole("button", { name: "Fechar" })) {
+      await user.click(screen.getByRole("button", { name: "Mais ações da conversa" }));
+    }
     await user.click(screen.getByRole("button", { name: "Fechar" }));
     const dialogo2 = await screen.findByRole("alertdialog");
     await user.click(within(dialogo2).getByRole("button", { name: "Fechar" }));
@@ -153,6 +160,7 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
     const user = userEvent.setup();
     render(<ConversationHeader conversation={conversa("open")} />);
 
+    await user.click(screen.getByRole("button", { name: "Mais ações da conversa" }));
     await user.click(screen.getByRole("button", { name: "Arquivar" }));
 
     const dialogo = await screen.findByRole("alertdialog");
@@ -176,6 +184,7 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
     const user = userEvent.setup();
     render(<ConversationHeader conversation={conversa("closed")} />);
 
+    await user.click(screen.getByRole("button", { name: "Mais ações da conversa" }));
     await user.click(screen.getByRole("button", { name: "Arquivar" }));
 
     const dialogo = await screen.findByRole("alertdialog");
@@ -185,5 +194,30 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
         "Arquivar encerra este atendimento e guarda a conversa no histórico. Se o cliente escrever de novo, ela volta.",
       ),
     ).toBeNull();
+  });
+});
+
+describe("ConversationHeader — ficha e busca sob demanda", () => {
+  it("abre contexto e busca sem executar ações de atendimento", async () => {
+    const user = userEvent.setup();
+    const ficha = vi.fn();
+    const buscar = vi.fn();
+    render(
+      <ConversationHeader
+        conversation={conversa("open")}
+        onAbrirFicha={ficha}
+        onBuscar={buscar}
+        buscaAberta={false}
+      />,
+    );
+    const abrirFicha = screen.getByRole("button", { name: "Dados do lead" });
+    expect(abrirFicha).toHaveTextContent("Dados do lead");
+    expect(abrirFicha.closest(".crm-conversation-menu")).toBeNull();
+    await user.click(abrirFicha);
+    expect(ficha).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole("button", { name: "Buscar nesta conversa" }));
+    expect(buscar).toHaveBeenCalledOnce();
+    expect(closeMutate).not.toHaveBeenCalled();
+    expect(arquivarMutate).not.toHaveBeenCalled();
   });
 });

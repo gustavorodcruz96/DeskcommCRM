@@ -10,7 +10,7 @@
  * `navegacao-registry.test.ts`; aqui é a superfície.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 import { Sidebar } from "@/components/shell/Sidebar";
 import type { ActiveOrg, AuthUser } from "@/lib/auth/types";
@@ -44,12 +44,15 @@ function comoPapel(role: ActiveOrg["role"]) {
   authRef.activeOrg = { orgId: "org-1", name: "Org", role };
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  window.localStorage.clear();
+});
 
 describe("Sidebar agrupado", () => {
   it("renderiza os títulos de grupo na ordem de uso", () => {
     comoPapel("admin");
-    render(<Sidebar collapsed={false} />);
+    render(<Sidebar />);
     const titulos = screen
       .getAllByRole("heading")
       .map((el) => el.textContent?.trim())
@@ -61,7 +64,7 @@ describe("Sidebar agrupado", () => {
 
   it("leva às Etapas do funil pelo CRM, e não por Configurações", () => {
     comoPapel("admin");
-    render(<Sidebar collapsed={false} />);
+    render(<Sidebar />);
     // ⚠️ O CAMINHO MUDOU, A PROPRIEDADE NÃO. Etapas do funil saiu do menu para
     // dentro do hub do CRM quando Tarefas virou o quinto destino do grupo e o
     // menu passou a rolar. A porta continua sendo CRM — "Ver tudo em CRM" leva
@@ -77,13 +80,13 @@ describe("Sidebar agrupado", () => {
 
   it("e os dois itens de funil não disputam o mesmo nome", () => {
     comoPapel("admin");
-    render(<Sidebar collapsed={false} />);
+    render(<Sidebar />);
     expect(screen.getByRole("link", { name: "Funis" })).toHaveAttribute("href", "/app/kanban");
   });
 
   it("desenterra Audit Log — e Nuvemshop ficou de fora, por escolha", () => {
     comoPapel("admin");
-    render(<Sidebar collapsed={false} />);
+    render(<Sidebar />);
     // ⚠️ O CAMINHO MUDOU, A PROPRIEDADE NÃO. O que esta linha sempre prendeu é
     // que Audit Log deixou de existir só como card enterrado em Configurações.
     // Quando Atividades (PR #583) virou o quinto destino do grupo Análise e o
@@ -113,7 +116,7 @@ describe("Sidebar agrupado", () => {
 
   it("Configurações fica no rodapé, nunca dependendo de scroll", () => {
     comoPapel("admin");
-    render(<Sidebar collapsed={false} />);
+    render(<Sidebar />);
     const config = screen.getByRole("link", { name: /Configurações/ });
     expect(config).toHaveAttribute("href", "/app/settings");
     // Fora da <nav> que rola.
@@ -124,7 +127,7 @@ describe("Sidebar agrupado", () => {
   it("não deixa cabeçalho órfão quando a permissão esvazia o grupo", () => {
     // CANAIS é todo manager+/admin. Um agent não pode ver o título sozinho.
     comoPapel("agent");
-    render(<Sidebar collapsed={false} />);
+    render(<Sidebar />);
     const titulos = screen.getAllByRole("heading").map((el) => el.textContent?.trim());
     expect(titulos).not.toContain("Canais");
     expect(titulos).toContain("Atendimento");
@@ -132,22 +135,37 @@ describe("Sidebar agrupado", () => {
 
   it("oferece o hub dos grupos que têm um", () => {
     comoPapel("admin");
-    render(<Sidebar collapsed={false} />);
+    render(<Sidebar />);
     expect(screen.getByRole("link", { name: /Ver tudo em IA/ })).toHaveAttribute("href", "/app/ai");
   });
 
-  it("colapsado esconde os títulos mas mantém os links", () => {
+  it("desktop mantém os títulos e não oferece recolher", () => {
     comoPapel("admin");
-    render(<Sidebar collapsed />);
-    expect(screen.queryAllByRole("heading")).toHaveLength(0);
-    expect(screen.getByRole("link", { name: /Inbox/ })).toBeTruthy();
+    render(<Sidebar />);
+    expect(screen.queryAllByRole("heading").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /sidebar/i })).toBeNull();
+    expect(screen.getByRole("link", { name: /Conversas/ })).toBeTruthy();
   });
 
   it("marca a rota atual com aria-current", () => {
     comoPapel("admin");
-    render(<Sidebar collapsed={false} />);
-    expect(screen.getByRole("link", { name: /Inbox/ })).toHaveAttribute("aria-current", "page");
+    render(<Sidebar />);
+    expect(screen.getByRole("link", { name: /Conversas/ })).toHaveAttribute("aria-current", "page");
     // "Kanban" saiu da interface; o item da mesma URL agora se chama "Funis".
     expect(screen.getByRole("link", { name: "Funis" })).not.toHaveAttribute("aria-current");
+  });
+});
+
+describe("menu padrão diretamente acessível", () => {
+  it("não exige Ferramentas e permite recolher apenas o grupo desejado", () => {
+    comoPapel("admin");
+    render(<Sidebar />);
+    expect(screen.queryByRole("button", { name: "Ferramentas" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Agentes" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Agente de IA" }));
+    expect(screen.queryByRole("link", { name: "Agentes" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Conversas" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Agente de IA" }));
+    expect(screen.getByRole("link", { name: "Agentes" })).toBeTruthy();
   });
 });

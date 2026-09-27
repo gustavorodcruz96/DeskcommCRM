@@ -2,14 +2,15 @@
 import Link from "next/link";
 import { useT } from "@/hooks/i18n/useT";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { ArrowRight, CaretDoubleLeft, CaretDoubleRight, CaretDown, Gear } from "@/lib/ui/icons";
+import { useEffect, useState } from "react";
+import { ArrowRight, CaretDown, Gear } from "@/lib/ui/icons";
+import { NavigationPending } from "@/components/shell/NavigationPending";
+import { SearchTrigger } from "@/components/shell/SearchTrigger";
 import { cn } from "@/lib/utils";
-import { toggleSidebar } from "@/app/actions/shell/toggleSidebar";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { ConnectionHealthDot } from "@/components/connections/ConnectionHealthDot";
 import { VersionFooter } from "@/components/shell/VersionFooter";
-import { LogotipoDoProduto, SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
+import { SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
 import { marcaEhADoProduto } from "@/lib/branding";
 import { useMarcaDaInstalacao } from "@/lib/branding/contexto";
 import { GRUPO_NO_RODAPE, sidebarGroups } from "@/lib/navigation/registry";
@@ -18,7 +19,6 @@ const CHAVE_GRUPOS_FECHADOS = "sidebar-grupos-fechados";
 
 interface SidebarContentProps {
   collapsed: boolean;
-  showCollapseControl?: boolean;
   onNavigate?: () => void;
 }
 
@@ -30,16 +30,11 @@ interface SidebarContentProps {
  * itens e sete `usePermission()` viviam aqui — e divergiam do hub de
  * Configurações e das abas de IA, que mantinham suas próprias listas.
  */
-export function SidebarContent({
-  collapsed,
-  showCollapseControl = true,
-  onNavigate,
-}: SidebarContentProps) {
+export function SidebarContent({ collapsed, onNavigate }: SidebarContentProps) {
   // A barra lateral aparece em TODA tela — traduzi-la aqui é o que faz a
   // escolha de idioma virar algo visível no primeiro clique.
   const t = useT();
   const pathname = usePathname();
-  const [isPending, startTransition] = useTransition();
   const { user, activeOrg } = useAuth();
   const todos = sidebarGroups(
     user.is_platform_admin && !user.support,
@@ -102,6 +97,7 @@ export function SidebarContent({
    * rota de `activeOrg`, e os dois lados leem o mesmo objeto por construção.
    */
   const nome = activeOrg?.marca?.nome ?? brand.name;
+  const [marcaPrincipal, ...marcaComplemento] = nome.split(/\s+/);
   /**
    * O mesmo desenho para o LOGO — e é este par de linhas que fecha o caminho do
    * `logo_url` gravado até a tela.
@@ -112,126 +108,74 @@ export function SidebarContent({
    * descer para ele — que é o contrário do que a precedência por campo promete.
    */
   const logo = activeOrg?.marca?.logoUrl || brand.logoUrl;
+  // A versão para fundo escuro, com a mesma precedência da marca acima: a org
+  // que enviou logo próprio sem versão escura não herda a do produto.
   const logoEscuro =
     activeOrg?.marca?.logoDarkUrl !== undefined
       ? activeOrg.marca.logoDarkUrl
       : activeOrg?.marca?.logoUrl
         ? null
         : brand.logoDarkUrl;
-  // Só quando NINGUÉM — nem a instalação, nem a organização — pôs marca própria:
-  // é a condição de `lib/branding.ts`, avaliada sobre o que a barra vai mostrar.
   const marcaDoProduto = marcaEhADoProduto({ name: nome, logoUrl: logo ?? null });
 
   return (
     <>
       <div
         className={cn(
-          "flex h-14 items-center border-b px-4",
-          collapsed ? "justify-center" : "justify-start",
+          "app-brand flex items-center gap-2 border-b p-4",
+          collapsed && "flex-col px-2",
         )}
       >
-        {(logo || logoEscuro) && !collapsed ? (
-          // Sem arte própria para o escuro, preserva a proteção de contraste.
-          <div
-            className={cn(
-              "rounded-md",
-              !logoEscuro && "dark:bg-white dark:px-2 dark:py-1 dark:shadow-sm",
-            )}
-          >
-            {/* <img> em vez de next/image de propósito: a URL vem de quem hospeda
-              (banco ou .env), e next/image exige allowlist de domínios fechada em
-              build — a imagem pré-buildada rejeitaria o domínio do self-hoster.
-              Altura fixa e largura livre porque a arte enviada tem proporção
-              desconhecida; forçar as duas distorceria o logo de quem configurou. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {logo ? (
+        <Link
+          href="/app"
+          aria-label={nome}
+          onClick={onNavigate}
+          className="flex min-w-0 flex-1 items-center gap-3"
+        >
+          {logo ? (
+            // Sem versão escura, o logo fica sobre um chip claro no tema escuro:
+            // arte escura em fundo escuro some.
+            <span className={cn("shrink-0 rounded-xl", !logoEscuro && "dark:bg-white")}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={logo}
                 alt={nome}
                 className={cn(
-                  "h-7 w-auto max-w-[10rem] object-contain",
+                  "app-brand-image h-10 w-10 rounded-xl object-contain",
                   logoEscuro && "dark:hidden",
                 )}
               />
-            ) : (
-              <span className="dark:hidden">{nome}</span>
-            )}
-            {logoEscuro ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoEscuro}
-                alt={nome}
-                className="hidden h-7 w-auto max-w-[10rem] object-contain dark:block"
-              />
-            ) : null}
-          </div>
-        ) : marcaDoProduto ? (
-          // O desenho do produto, inline (ver `components/branding/MarcaDoProduto.tsx`):
-          // logotipo com a barra aberta, só o símbolo com ela recolhida.
-          collapsed ? (
-            <SimboloDoProduto nome={nome} className="h-8 w-8" />
-          ) : (
-            <LogotipoDoProduto nome={nome} className="h-8 w-auto" />
-          )
-        ) : (
-          <span className={cn("font-semibold tracking-tight", collapsed && "sr-only")}>{nome}</span>
-        )}
-        {collapsed && !marcaDoProduto && (
-          <span aria-hidden className="text-lg font-bold text-primary">
-            {/* Spread e não `[0]`: nome começando com emoji ou acento composto
-                quebraria no meio do code point. Mesma regra de `resolveBranding`
-                — a inicial precisa acompanhar o nome que a barra mostra, senão
-                recolher o menu troca a marca. */}
-            {[...nome][0]?.toUpperCase() ?? brand.initial}
-          </span>
-        )}
+              {logoEscuro && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoEscuro}
+                  alt={nome}
+                  className="app-brand-image hidden h-10 w-10 rounded-xl object-contain dark:block"
+                />
+              )}
+            </span>
+          ) : marcaDoProduto ? (
+            <SimboloDoProduto nome={nome} className="h-10 w-10 shrink-0" />
+          ) : collapsed ? (
+            <span aria-hidden className="text-lg font-bold">
+              {[...nome][0]?.toUpperCase() ?? brand.initial}
+            </span>
+          ) : null}
+          {!collapsed && (
+            <span className="crm-brand-name">
+              <strong>{marcaPrincipal}</strong>
+              {marcaComplemento.length > 0 && <small>{marcaComplemento.join(" ")}</small>}
+            </span>
+          )}
+        </Link>
       </div>
-      {/*
-        A DENSIDADE É MEDIDA, NÃO ESTÉTICA.
-
-        O e2e `navegacao.spec.ts` exige que o menu inteiro caiba em 1280×900 sem
-        rolar — porque um grupo abaixo da dobra é indistinguível de um grupo que
-        não existe. Com 18 links a margem era de ~4px: a tela nova de Produtos
-        estourou a dobra por uma linha, e reprovou no CI.
-
-        `py-1.5` → `py-1` (linha de 32px para 28px) e o intervalo entre grupos de
-        12px para 8px devolvem ~90px — folga para o próximo item, em vez de
-        deixar a próxima tela nova repetir esta corrida.
-
-        ⚠️ Isto é remendo de densidade, não conserto estrutural. O menu vai
-        estourar de novo: a saída existente é o HUB (o grupo IA já a usa — nove
-        das treze telas dele moram atrás do "Ver tudo em IA"), e o CRM ainda não
-        tem um. Quando o quinto destino de CRM aparecer, é hub que se cria, não
-        mais 4px que se raspa.
-
-        ✅ O QUINTO APARECEU, e a promessa foi paga. Tarefas (PR #546) levou o
-        CRM a cinco telas e a dobra estourou em 13px — medido em 1280×900,
-        `scrollHeight` 776 contra 763 de altura. O conserto foi `/app/crm`, o
-        hub do grupo: Produtos e Etapas do funil saíram do menu para dentro
-        dele, e nenhum valor deste arquivo mudou por causa disso.
-
-        Fica valendo o mesmo, agora para o próximo grupo: com hub em CRM, IA e
-        Organização, tela nova de qualquer um dos três não pressiona mais o
-        menu. Quem pressionar é um grupo SEM hub — Atendimento (4), Canais (3)
-        ou Análise (3). Quando um deles passar de quatro, a resposta é a mesma:
-        cria-se o hub, não se raspa densidade.
-
-        ✅ ANÁLISE FOI A SEGUINTE, e a regra valeu igual. Atividades (PR #583)
-        levou o grupo a cinco telas e a dobra estourou de novo — medido em
-        1280×900, logado como admin: `scrollHeight` 776 contra 763 de altura
-        visível, 13px de excesso, com o link "Audit Log" 13px abaixo da caixa de
-        conteúdo da nav. O conserto foi `/app/analise`, o hub do grupo: Evolução
-        da IA e Audit Log saíram do menu para dentro dele, e NENHUM valor deste
-        arquivo mudou por causa disso. Sobrou 19px de folga — a mesma que havia
-        antes de Atividades chegar.
-
-        Ficam sem hub Atendimento e Canais (4 e 2 destinos quando isto foi
-        medido) — em qualquer um deles, o quinto destino é que cria o hub, nunca
-        mais densidade raspada. A conta é fechada e vale conferir antes de abrir
-        o PR: cada linha custa 32px (28px de altura + 4px de `space-y-1`), e
-        trocar N destinos do menu por um único link de hub devolve (N-1)×32px.
-      */}
-      <nav className="flex-1 space-y-2 overflow-y-auto p-2" aria-label={t("Navegação principal")}>
+      <div className="crm-sidebar-search">
+        <SearchTrigger compact={collapsed} />
+      </div>
+      <nav
+        className="crm-sidebar-groups flex-1 space-y-2 overflow-y-auto p-2"
+        aria-label={t("Navegação principal")}
+      >
         {grupos.map(({ group, items }) => {
           const tituloId = `nav-grupo-${group.id}`;
           // Recolhido o sidebar inteiro (rail de 64px), o grupo sempre mostra
@@ -270,7 +214,12 @@ export function SidebarContent({
                   aria-label={collapsed ? t(group.label) : undefined}
                   className="space-y-1"
                 >
-                  {items.map((item) => {
+                  {items.map((original) => {
+                    // No menu, o Inbox leva o mesmo nome do título da tela: "Conversas".
+                    const item =
+                      original.href === "/app/inbox"
+                        ? { ...original, label: "Conversas" }
+                        : original;
                     const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
                     const Icon = item.icon;
                     return (
@@ -281,15 +230,16 @@ export function SidebarContent({
                           aria-current={isActive ? "page" : undefined}
                           onClick={onNavigate}
                           className={cn(
-                            "relative flex items-center gap-3 rounded-md px-3 py-1 text-sm transition-colors",
+                            "crm-group-link relative flex items-center gap-3 rounded-md px-3 py-1 text-sm transition-colors",
                             isActive
                               ? "bg-accent text-accent-foreground"
                               : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
                             collapsed && "justify-center px-2",
                           )}
                         >
-                          <Icon size={18} weight={isActive ? "fill" : "regular"} aria-hidden />
+                          <Icon size={20} weight="regular" aria-hidden />
                           {!collapsed && <span className="truncate">{t(item.label)}</span>}
+                          <NavigationPending />
                           {item.healthDot && (
                             <ConnectionHealthDot
                               className={cn(collapsed ? "absolute top-1.5 right-1.5" : "ml-auto")}
@@ -307,7 +257,7 @@ export function SidebarContent({
                         aria-current={pathname === group.hub.href ? "page" : undefined}
                         onClick={onNavigate}
                         className={cn(
-                          "flex items-center gap-3 rounded-md px-3 py-1 text-sm transition-colors",
+                          "crm-group-link flex items-center gap-3 rounded-md px-3 py-1 text-sm transition-colors",
                           pathname === group.hub.href
                             ? "bg-accent text-accent-foreground"
                             : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
@@ -316,6 +266,7 @@ export function SidebarContent({
                       >
                         <ArrowRight size={18} aria-hidden />
                         {!collapsed && <span className="truncate">{t(group.hub.label)}</span>}
+                        <NavigationPending />
                       </Link>
                     </li>
                   )}
@@ -325,7 +276,7 @@ export function SidebarContent({
           );
         })}
       </nav>
-      <div className="border-t p-2">
+      <div className="crm-sidebar-footer border-t p-2">
         {rodape && (
           <Link
             href={rodape.href}
@@ -345,33 +296,17 @@ export function SidebarContent({
           </Link>
         )}
         <VersionFooter collapsed={collapsed} onNavigate={onNavigate} />
-        {showCollapseControl && (
-          <button
-            type="button"
-            onClick={() => startTransition(() => toggleSidebar(collapsed))}
-            disabled={isPending}
-            className={cn(
-              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-              collapsed && "justify-center px-2",
-            )}
-            aria-label={collapsed ? t("Expandir sidebar") : t("Recolher sidebar")}
-          >
-            {collapsed ? (
-              <CaretDoubleRight size={14} aria-hidden />
-            ) : (
-              <CaretDoubleLeft size={14} aria-hidden />
-            )}
-            {!collapsed && <span>{t("Recolher")}</span>}
-          </button>
-        )}
       </div>
     </>
   );
 }
 
-export function Sidebar({ collapsed }: { collapsed: boolean }) {
+export function Sidebar() {
+  const collapsed = false;
   return (
     <aside
+      data-shell-sidebar
+      data-collapsed={collapsed}
       className={cn(
         // ⚠️ `sticky`, e NUNCA `fixed`.
         //
@@ -393,7 +328,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         // `shrink-0` porque item de flex encolhe por padrão, e uma barra de 60
         // espremida para caber é o mesmo defeito por outro caminho.
         "sticky top-0 z-30 flex h-screen shrink-0 flex-col border-r bg-card transition-[width] duration-200",
-        collapsed ? "w-16" : "w-60",
+        collapsed ? "w-20" : "w-60",
       )}
     >
       <SidebarContent collapsed={collapsed} />

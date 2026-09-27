@@ -3003,3 +3003,12 @@ Port do #1130 (@vgamkt), PR 3 de 4. Spec: `tests/e2e/fluxo-de-atendimento.spec.t
 | J33.4 | Três mensagens pelo webhook do WAHA; a ficha mostra o roteiro «Concluído» com CPF e modelo (caixa medida por `boundingBox` e estilo computado) |
 
 **NÃO coberto por esta spec:** o turno do agente roda com o worker e o modelo de verdade — no CI não há nenhum dos dois, e a spec chama as mesmas funções do motor (`prepararRoteiroDoTurno`, `garantirPerguntaDoRoteiro`) com o validador devolvendo `indefinido`. A pergunta enviada ao cliente pelo WhatsApp e a leitura pelo validador de modelo ficam para a prova do PR 4.
+
+### Nova interface do atendimento — 27/09/2026
+
+- Ficha por nome/botão, sem coluna fixa: callbacks em `ConversationHeader.test.tsx`; deep-link abre/fecha a ficha em `deep-link-nao-espera-a-lista.test.tsx`. O botão `Dados do lead` fica no cabeçalho, fora de `Mais ações da conversa`.
+- Busca somente nas mensagens carregadas: `chat-thread-ancoragem-instantanea.test.tsx` cobre correspondências, ausência, ocultadas e revogadas. Não equivale a busca histórica no servidor.
+- Ações secundárias da conversa e nota interna ficam em menus acessíveis; encerramento com confirmação. Padrão claro sem preferência salva, respeitando escolhas explícitas (`lib/theme.test.tsx`).
+- Barra lateral fixa no desktop com os grupos padrão, gaveta no celular (`sidebar-grupos`, `sidebar-nome-da-organizacao`, `marca-do-produto`, `marca-sem-divergencia-de-hidratacao`). Indicador de navegação em links pendentes; papel e MFA lidos em paralelo (`require-role-mfa`).
+- Geometria em `app/interface.css`, pintada pelos tokens `--color-*`; `interface-ganchos-existem.test.ts` garante que todo gancho `crm-*` do CSS existe em algum componente. Uma dona só da rolagem por tela: moldura, quadro do funil e grade da agenda medidos em 1024×768 (documento 768/768, quadro sem rolagem dupla, grade da semana visível).
+- Limite: a prova autenticada foi feita numa instalação real com a mesma geometria servida por proxy, não neste branch; falta a prova de tela em ambiente fresco.

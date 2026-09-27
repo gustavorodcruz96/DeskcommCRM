@@ -1,7 +1,8 @@
 "use client";
 import { useT } from "@/hooks/i18n/useT";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CaretLeft, CaretRight, MagnifyingGlass } from "@/lib/ui/icons";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MagnifyingGlass, DotsThree } from "@/lib/ui/icons";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -67,40 +68,6 @@ interface Props {
 export function InboxFilters({ value, onChange }: Props) {
   const t = useT();
   const [searchInput, setSearchInput] = useState(value.search);
-  const tabsListRef = useRef<HTMLDivElement>(null);
-  const [moreTabs, setMoreTabs] = useState({ left: false, right: false });
-  const updateMoreTabs = useCallback(() => {
-    const list = tabsListRef.current;
-    if (!list) return;
-    const maxScroll = Math.max(0, list.scrollWidth - list.clientWidth);
-    const next = { left: list.scrollLeft > 1, right: list.scrollLeft < maxScroll - 1 };
-    setMoreTabs((previous) =>
-      previous.left === next.left && previous.right === next.right ? previous : next,
-    );
-  }, []);
-  useEffect(() => {
-    const list = tabsListRef.current;
-    if (!list) return;
-    const centerSelectedTab = () => {
-      // Deixar a aba só na borda esconde as vizinhas. Centralizar mostra o
-      // contexto dos dois lados, salvo nas extremidades naturais da faixa.
-      const selected = list.querySelector<HTMLElement>('[role="tab"][data-state="active"]');
-      if (selected) {
-        const selectedCenter =
-          selected.getBoundingClientRect().left - list.getBoundingClientRect().left +
-          list.scrollLeft + selected.offsetWidth / 2;
-        const maxScroll = Math.max(0, list.scrollWidth - list.clientWidth);
-        list.scrollLeft = Math.max(0, Math.min(maxScroll, selectedCenter - list.clientWidth / 2));
-      }
-      updateMoreTabs();
-    };
-    centerSelectedTab();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(centerSelectedTab);
-    observer.observe(list);
-    list.querySelectorAll<HTMLElement>('[role="tab"]').forEach((tab) => observer.observe(tab));
-    return () => observer.disconnect();
-  }, [value.tab, updateMoreTabs]);
   /**
    * O campo escuta o valor de FORA — e só ele.
    *
@@ -162,10 +129,6 @@ export function InboxFilters({ value, onChange }: Props) {
   const tabs = activeOrg
     ? visibleInboxTabs(activeOrg.role, activeOrg.visibility_mode)
     : INBOX_TABS.map((t) => t.value);
-  const moveTab = (direction: -1 | 1) => {
-    const next = tabs[tabs.indexOf(value.tab) + direction];
-    if (next) onChange({ ...value, tab: next });
-  };
   const countFor: Partial<Record<InboxTab, number>> = {
     // `fila` é o nome novo; `unassigned` é o alias que a rota versionada mantém.
     // O `??` cobre a janela em que a página ainda lê um cache de react-query
@@ -233,9 +196,7 @@ export function InboxFilters({ value, onChange }: Props) {
   // desfazer o filtro que continua valendo.
   const vocabularioConhecido = tagVocabulary != null || ultimoVocabulario.length > 0;
   const tagForaDoVocabulario =
-    value.tag != null &&
-    vocabularioConhecido &&
-    !vocabularioDoSeletor.includes(value.tag);
+    value.tag != null && vocabularioConhecido && !vocabularioDoSeletor.includes(value.tag);
   const mostrarSeletorDeTag = vocabularioDoSeletor.length > 0 || tagForaDoVocabulario;
 
   // O timer lê o valor MAIS RECENTE, não o do render em que foi agendado.
@@ -275,14 +236,20 @@ export function InboxFilters({ value, onChange }: Props) {
   }, [searchInput]);
 
   return (
-    <div className="border-b border-border bg-background">
-      <div className="space-y-2 px-3 pt-3 pb-2">
-        <div className="flex items-center gap-2">
+    <div className="crm-inbox-filters border-b border-border bg-background">
+      <div className="crm-list-heading">
+        <h2>{t("Conversas")}</h2>
+        {typeof countFor[value.tab] === "number" && (
+          <span aria-label={t("Conversas nesta visão")}>{countFor[value.tab]}</span>
+        )}
+      </div>
+      <div className="crm-filter-controls space-y-2 px-3 pt-3 pb-2">
+        <div className="crm-filter-search flex items-center gap-2">
           <div className="relative min-w-0 flex-1">
             <MagnifyingGlass
               size={15}
               weight="regular"
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-subtle"
+              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-subtle"
               aria-hidden
             />
             {/* "última mensagem", e não "mensagem": a busca alcança apenas
@@ -294,7 +261,7 @@ export function InboxFilters({ value, onChange }: Props) {
             <Input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder={t("Buscar por nome, telefone ou última mensagem…")}
+              placeholder={t("Buscar conversa")}
               className="h-9 rounded-full border-transparent bg-surface-elevated pl-9 text-sm shadow-none focus-visible:border-border focus-visible:bg-background"
               aria-label={t("Buscar conversas")}
             />
@@ -302,20 +269,6 @@ export function InboxFilters({ value, onChange }: Props) {
           {/* Botão pressionável em vez de Switch: o filtro vive na mesma linha
               da busca, e o Switch com rótulo pedia uma linha inteira só para
               si numa coluna de 280px. */}
-          <button
-            type="button"
-            aria-pressed={value.onlyUnread}
-            onClick={() => onChange({ ...value, onlyUnread: !value.onlyUnread })}
-            className={cn(
-              "h-9 shrink-0 rounded-full border px-3 text-xs font-medium transition-colors",
-              "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              value.onlyUnread
-                ? "border-accent bg-accent text-accent-foreground"
-                : "border-border bg-transparent text-text-muted hover:bg-surface-elevated",
-            )}
-          >
-            {t("Não lidos")}
-          </button>
         </div>
 
         {(showChannelSwitch || mostrarSeletorDeTag) && (
@@ -407,56 +360,73 @@ export function InboxFilters({ value, onChange }: Props) {
       <Tabs
         value={value.tab}
         onValueChange={(v) => onChange({ ...value, tab: v as InboxTab })}
-        className="px-3"
+        className="crm-filter-tabs flex items-center gap-2 px-3"
       >
-        <div className="flex items-center gap-1">
-          {moreTabs.left ? (
-            <button
-              type="button"
-              onClick={() => moveTab(-1)}
-              aria-label={t("Aba anterior")}
-              className="flex w-4 shrink-0 items-center justify-center text-text-muted hover:text-text focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <CaretLeft size={13} aria-hidden />
-            </button>
-          ) : (
-            <span className="w-4 shrink-0" aria-hidden />
-          )}
-          <TabsList
-            ref={tabsListRef}
-            onScroll={updateMoreTabs}
-            className="h-auto min-w-0 flex-1 justify-between gap-2 rounded-none bg-transparent p-0 [scrollbar-width:none]"
-          >
-            {tabs.map((tab) => {
+        <TabsList className="h-auto min-w-0 flex-1 [scrollbar-width:none] justify-between gap-2 rounded-none bg-transparent p-0">
+          {(["all", "unassigned", "mine"] as InboxTab[])
+            .filter((tab) => tabs.includes(tab))
+            .map((tab) => {
               const meta = INBOX_TABS.find((t) => t.value === tab)!;
               const count = countFor[tab];
               return (
                 <TabsTrigger
                   key={tab}
                   value={tab}
-                  className="shrink-0 gap-1 rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-xs font-medium text-text-muted data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-text data-[state=active]:shadow-none"
+                  className="-mb-px shrink-0 gap-1 rounded-none border-b-2 border-transparent px-0 pt-1 pb-2 text-xs font-medium text-text-muted data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-text data-[state=active]:shadow-none"
                 >
                   {t(meta.label)}
                   {typeof count === "number" && count > 0 && (
-                    <span className="text-[11px] tabular-nums text-text-subtle">{count}</span>
+                    <span className="text-[11px] text-text-subtle tabular-nums">{count}</span>
                   )}
                 </TabsTrigger>
               );
             })}
-          </TabsList>
-          {moreTabs.right ? (
+        </TabsList>
+        <button
+          type="button"
+          aria-pressed={value.onlyUnread}
+          onClick={() => onChange({ ...value, onlyUnread: !value.onlyUnread })}
+          className={cn(
+            "h-9 shrink-0 rounded-full border px-3 text-xs font-medium transition-colors",
+            "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden",
+            value.onlyUnread
+              ? "border-accent bg-accent text-accent-foreground"
+              : "border-border bg-transparent text-text-muted hover:bg-surface-elevated",
+          )}
+        >
+          {t("Não lidos")}
+        </button>
+        <Popover>
+          <PopoverTrigger asChild>
             <button
               type="button"
-              onClick={() => moveTab(1)}
-              aria-label={t("Próxima aba")}
-              className="flex w-4 shrink-0 items-center justify-center text-text-muted hover:text-text focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+              className="crm-more-filters"
+              aria-label={t("Mais filtros de conversas")}
             >
-              <CaretRight size={13} aria-hidden />
+              <DotsThree size={18} />
+              {["closed", "archived", "ai"].includes(value.tab) && (
+                <span>{t(INBOX_TABS.find((tab) => tab.value === value.tab)!.label)}</span>
+              )}
             </button>
-          ) : (
-            <span className="w-4 shrink-0" aria-hidden />
-          )}
-        </div>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="crm-conversation-menu w-56 p-2">
+            {(["closed", "archived", "ai"] as InboxTab[])
+              .filter((tab) => tabs.includes(tab))
+              .map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  aria-pressed={value.tab === tab}
+                  onClick={() => onChange({ ...value, tab })}
+                >
+                  {t(INBOX_TABS.find((item) => item.value === tab)!.label)}
+                  {typeof countFor[tab] === "number" && (
+                    <span className="ml-auto text-xs">{countFor[tab]}</span>
+                  )}
+                </button>
+              ))}
+          </PopoverContent>
+        </Popover>
       </Tabs>
     </div>
   );

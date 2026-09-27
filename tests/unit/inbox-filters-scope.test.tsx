@@ -14,7 +14,7 @@
  * valendo — inbox filtrado, às vezes vazio, sem nada na tela dizendo por quê.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 import { InboxFilters, visibleInboxTabs, type InboxFiltersValue } from "@/components/inbox/InboxFilters";
 import type * as CanaisModule from "@/hooks/channels/useChannelSessions";
@@ -107,54 +107,29 @@ describe("visibleInboxTabs (lógica pura de visões)", () => {
 });
 
 describe("InboxFilters render — 3 visões + escopo", () => {
-  it("centraliza a aba selecionada e indica as abas fora da coluna", () => {
+  // As abas que não cabiam numa coluna estreita (#24ee06bb8 resolvia com
+  // rolagem e setas) agora não precisam caber: a barra fica com as três visões
+  // do dia a dia, e as de consulta moram no "…". Nenhuma visão some.
+  it("a barra mostra Todas, Fila e Minhas; as visões de consulta ficam no menu", () => {
     setOrg("manager", "all");
-    let onResize: ResizeObserverCallback = () => {};
-    const disconnect = vi.fn();
-    vi.stubGlobal("ResizeObserver", class {
-      constructor(callback: ResizeObserverCallback) { onResize = callback; }
-      observe() {}
-      disconnect = disconnect;
-    });
+    const onChange = vi.fn();
+    const { rerender } = render(<InboxFilters value={VALUE} onChange={onChange} />);
+    const nomes = screen
+      .getAllByRole("tab")
+      .map((tab) => tab.textContent?.replace(/\d+/g, "").trim());
+    expect(nomes).toEqual(["Todas", "Fila", "Minhas"]);
+    expect(screen.queryByRole("button", { name: "Próxima aba" })).toBeNull();
 
-    try {
-      const onChange = vi.fn();
-      const { rerender } = render(<InboxFilters value={VALUE} onChange={onChange} />);
-      const list = screen.getByRole("tablist");
-      let width = 180;
-      Object.defineProperty(list, "clientWidth", { configurable: true, get: () => width });
-      Object.defineProperty(list, "scrollWidth", { configurable: true, value: 520 });
-      vi.spyOn(list, "getBoundingClientRect").mockReturnValue({ left: 0 } as DOMRect);
-      const all = screen.getByRole("tab", { name: /Todas/ });
-      Object.defineProperty(all, "offsetWidth", { configurable: true, value: 40 });
-      vi.spyOn(all, "getBoundingClientRect").mockImplementation(
-        () => ({ left: 210 - list.scrollLeft }) as DOMRect,
-      );
-      rerender(<InboxFilters value={{ ...VALUE, tab: "all" }} onChange={onChange} />);
-      expect(list.scrollLeft).toBe(140);
-      expect(screen.getByRole("button", { name: "Aba anterior" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Próxima aba" })).toBeInTheDocument();
-      fireEvent.click(screen.getByRole("button", { name: "Próxima aba" }));
-      expect(onChange).toHaveBeenCalledWith({ ...VALUE, tab: "closed" });
+    fireEvent.click(screen.getByRole("button", { name: "Mais filtros de conversas" }));
+    fireEvent.click(screen.getByRole("button", { name: /Arquivadas/ }));
+    expect(onChange).toHaveBeenCalledWith({ ...VALUE, tab: "archived" });
 
-      width = 260;
-      act(() => onResize([], {} as ResizeObserver));
-      expect(list.scrollLeft).toBe(100);
-
-      const archived = screen.getByRole("tab", { name: /Arquivadas/ });
-      Object.defineProperty(archived, "offsetWidth", { configurable: true, value: 60 });
-      vi.spyOn(archived, "getBoundingClientRect").mockImplementation(
-        () => ({ left: 430 - list.scrollLeft }) as DOMRect,
-      );
-      rerender(<InboxFilters value={{ ...VALUE, tab: "archived" }} onChange={onChange} />);
-      expect(list.scrollLeft).toBe(260);
-      expect(screen.getByRole("button", { name: "Aba anterior" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Próxima aba" })).not.toBeInTheDocument();
-      expect(screen.getByRole("tab", { name: /Arquivadas/ })).toHaveAttribute("data-state", "active");
-    } finally {
-      vi.unstubAllGlobals();
-    }
-    expect(disconnect).toHaveBeenCalled();
+    // Com uma visão do menu selecionada, o botão diz qual é — senão a lista
+    // filtrada não teria nada na tela explicando o recorte.
+    rerender(<InboxFilters value={{ ...VALUE, tab: "archived" }} onChange={onChange} />);
+    expect(
+      screen.getByRole("button", { name: "Mais filtros de conversas" }).textContent,
+    ).toContain("Arquivadas");
   });
 
   it("agent em modo own*: mostra Minhas e Fila, esconde Todas", () => {

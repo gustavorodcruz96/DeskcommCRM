@@ -37,6 +37,22 @@ import type { Idioma } from "./idiomas";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  // ─── NOVA INTERFACE DO ATENDIMENTO: conversa, filtros e busca ───
+  "resultados nas mensagens carregadas": { es: "resultados en los mensajes cargados" },
+  "Nota interna — só o time vê": { es: "Nota interna — solo el equipo la ve" },
+  "Voltar para mensagem": { es: "Volver al mensaje" },
+  "Mais opções": { es: "Más opciones" },
+  "Dados do lead": { es: "Datos del lead" },
+  "Concluir atendimento": { es: "Concluir atención" },
+  "Buscar nesta conversa": { es: "Buscar en esta conversación" },
+  "Mais ações da conversa": { es: "Más acciones de la conversación" },
+  "Ações da conversa": { es: "Acciones de la conversación" },
+  "Conversas nesta visão": { es: "Conversaciones en esta vista" },
+  "Buscar conversa": { es: "Buscar conversación" },
+  "Mais filtros de conversas": { es: "Más filtros de conversaciones" },
+  "Buscar nas mensagens carregadas": { es: "Buscar en los mensajes cargados" },
+  "Fechar busca": { es: "Cerrar búsqueda" },
+  "Buscar no sistema": { es: "Buscar en el sistema" },
   // ─── CAMPOS OBRIGATÓRIOS (issue #1536) ───
   "Campos obrigatórios": { es: "Campos obligatorios" },
   // Editor de `obrigatorio_em` no funil (CR do mantenedor no PR #1688).

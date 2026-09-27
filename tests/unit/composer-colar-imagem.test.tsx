@@ -43,7 +43,9 @@ function clipboard(opts: { files?: File[]; items?: unknown[]; texto?: string }) 
     files: opts.files ?? [],
     items:
       opts.items ??
-      (opts.texto !== undefined ? [{ kind: "string", type: "text/plain", getAsFile: () => null }] : []),
+      (opts.texto !== undefined
+        ? [{ kind: "string", type: "text/plain", getAsFile: () => null }]
+        : []),
     getData: () => opts.texto ?? "",
   } as unknown as DataTransfer;
 }
@@ -99,7 +101,10 @@ describe("imagemDoClipboard", () => {
   });
 
   it("entende mime com parâmetro (image/png;charset=binary)", () => {
-    const r = imagemDoClipboard(clipboard({ files: [png("image.png", [1], "image/png;charset=binary")] }), CARIMBO);
+    const r = imagemDoClipboard(
+      clipboard({ files: [png("image.png", [1], "image/png;charset=binary")] }),
+      CARIMBO,
+    );
     expect(r).not.toBeNull();
   });
 });
@@ -137,6 +142,7 @@ describe("Composer — colar imagem", () => {
 
   it("em 'Nota interna' colar imagem não vira anexo — nota é só texto", () => {
     renderComposer();
+    fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
     fireEvent.click(screen.getByRole("button", { name: /nota interna/i }));
     const seguiu = fireEvent.paste(campo(), { clipboardData: clipboard({ files: [png()] }) });
 
@@ -148,7 +154,9 @@ describe("Composer — colar imagem", () => {
     renderComposer();
     fireEvent.click(screen.getByRole("button", { name: /anexar/i }));
     const inputDoc = document.querySelector('input[accept^=".pdf"]') as HTMLInputElement;
-    const doc = new File([new Uint8Array([1])], "contrato-assinado.pdf", { type: "application/pdf" });
+    const doc = new File([new Uint8Array([1])], "contrato-assinado.pdf", {
+      type: "application/pdf",
+    });
     fireEvent.change(inputDoc, { target: { files: [doc] } });
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();

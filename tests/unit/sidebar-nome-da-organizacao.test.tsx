@@ -54,10 +54,10 @@ let marcaDaInstalacao: Branding = {
 };
 
 /** A barra como o layout raiz a monta: dentro do provedor da marca. */
-function renderSidebar(props: { collapsed: boolean }) {
+function renderSidebar() {
   return render(
     <MarcaDaInstalacaoProvider marca={marcaDaInstalacao}>
-      <Sidebar collapsed={props.collapsed} />
+      <Sidebar />
     </MarcaDaInstalacaoProvider>,
   );
 }
@@ -86,25 +86,25 @@ describe("o nome da marca na barra lateral", () => {
     // exatamente o que via antes. É também a guarda de vacuidade do caso
     // seguinte — se a barra nunca mostrasse nome nenhum, os dois passariam.
     contexto = { user: usuario, activeOrg: org };
-    renderSidebar({ collapsed: false });
-    expect(screen.getByText("Sistema do Revendedor")).toBeTruthy();
+    renderSidebar();
+    expect(screen.getByRole("link", { name: "Sistema do Revendedor" })).toBeTruthy();
   });
 
   it("com marca da organização, o nome dela SUBSTITUI o da instalação", () => {
     contexto = { user: usuario, activeOrg: { ...org, marca: { nome: "Loja da Ana" } } };
-    renderSidebar({ collapsed: false });
-    expect(screen.getByText("Loja da Ana")).toBeTruthy();
+    renderSidebar();
+    expect(screen.getByRole("link", { name: "Loja da Ana" })).toBeTruthy();
     // A ausência importa tanto quanto a presença: uma barra que mostrasse os
     // dois nomes passaria na asserção de cima e estaria errada.
-    expect(screen.queryByText("Sistema do Revendedor")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Sistema do Revendedor" })).toBeNull();
   });
 
-  it("recolhida, a inicial acompanha o nome que a barra mostra", () => {
+  it("desktop mantém o nome completo da organização", () => {
     // Sem isto, recolher o menu trocaria a marca: o nome viria da organização e
     // a inicial continuaria vindo da INSTALAÇÃO — "L" expandido, "S" recolhido.
     contexto = { user: usuario, activeOrg: { ...org, marca: { nome: "Loja da Ana" } } };
-    renderSidebar({ collapsed: true });
-    expect(screen.getByText("L")).toBeTruthy();
+    renderSidebar();
+    expect(screen.getByRole("link", { name: "Loja da Ana" })).toBeTruthy();
     expect(screen.queryByText("S")).toBeNull();
   });
 });
@@ -134,15 +134,14 @@ describe("o logo na barra lateral", () => {
 
   const imagem = () => screen.getByRole("img");
 
-  it("com logo da instalação, a barra desenha a imagem no lugar do nome", () => {
+  it("com logo da instalação, a barra desenha símbolo e nome", () => {
     marcaDaInstalacao = { ...marcaDaInstalacao, logoUrl: LOGO_DA_INSTALACAO };
     contexto = { user: usuario, activeOrg: org };
-    renderSidebar({ collapsed: false });
+    renderSidebar();
 
     expect(imagem().getAttribute("src")).toBe(LOGO_DA_INSTALACAO);
-    // A ausência importa: uma barra que mostrasse imagem E nome passaria só na
-    // asserção de cima, e o cabeçalho tem 56px de altura para um dos dois.
-    expect(screen.queryByText("Sistema do Revendedor")).toBeNull();
+    // O cabeçalho revisado reserva espaço para símbolo e nome lado a lado.
+    expect(screen.getByRole("link", { name: "Sistema do Revendedor" })).toBeTruthy();
   });
 
   it("o logo da organização SUBSTITUI o da instalação", () => {
@@ -151,7 +150,7 @@ describe("o logo na barra lateral", () => {
       user: usuario,
       activeOrg: { ...org, marca: { nome: "Loja da Ana", logoUrl: LOGO_DA_ORG } },
     };
-    renderSidebar({ collapsed: false });
+    renderSidebar();
 
     expect(imagem().getAttribute("src")).toBe(LOGO_DA_ORG);
     // O `alt` acompanha a imagem que está ali: com o logo da org, legendar com o
@@ -166,7 +165,7 @@ describe("o logo na barra lateral", () => {
     // logo do revendedor por causa de um campo em branco.
     marcaDaInstalacao = { ...marcaDaInstalacao, logoUrl: LOGO_DA_INSTALACAO };
     contexto = { user: usuario, activeOrg: { ...org, marca: { logoUrl: "" } } };
-    renderSidebar({ collapsed: false });
+    renderSidebar();
 
     expect(imagem().getAttribute("src")).toBe(LOGO_DA_INSTALACAO);
   });
@@ -176,9 +175,9 @@ describe("o logo na barra lateral", () => {
     // com `src` vazio, todos passariam pelo `getByRole("img")` e o produto
     // mostraria o ícone de imagem quebrada em toda instalação de fábrica.
     contexto = { user: usuario, activeOrg: org };
-    renderSidebar({ collapsed: false });
+    renderSidebar();
 
     expect(screen.queryByRole("img")).toBeNull();
-    expect(screen.getByText("Sistema do Revendedor")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Sistema do Revendedor" })).toBeTruthy();
   });
 });
