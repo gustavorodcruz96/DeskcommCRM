@@ -137,9 +137,9 @@ describe("ChatThread: busca no histórico carregado", () => {
     const { rerender } = render(<ChatThread conversationId="c-1" searchTerm="macbook" />, {
       wrapper,
     });
-    expect(screen.getByRole("status")).toHaveTextContent("1 resultados nas mensagens carregadas");
+    expect(screen.getByRole("status")).toHaveTextContent("Resultados nas mensagens carregadas: 1");
     rerender(<ChatThread conversationId="c-1" searchTerm="inexistente" />);
-    expect(screen.getByRole("status")).toHaveTextContent("0 resultados nas mensagens carregadas");
+    expect(screen.getByRole("status")).toHaveTextContent("Resultados nas mensagens carregadas: 0");
     rerender(<ChatThread conversationId="c-1" searchTerm="" />);
     expect(screen.queryByRole("status")).toBeNull();
     Element.prototype.scrollIntoView = original;

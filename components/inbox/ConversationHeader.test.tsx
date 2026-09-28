@@ -197,26 +197,35 @@ describe("ConversationHeader — Fechar e Arquivar por AlertDialog", () => {
   });
 });
 
-describe("ConversationHeader — ficha e busca sob demanda", () => {
-  it("abre contexto e busca sem executar ações de atendimento", async () => {
+describe("ConversationHeader — busca dentro da conversa (#1793)", () => {
+  it("o botão só existe com quem o atenda, e só abre a busca — nenhuma ação de atendimento", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<ConversationHeader conversation={conversa("open")} />);
+    expect(screen.queryByRole("button", { name: "Buscar nesta conversa" })).toBeNull();
+
+    const buscar = vi.fn();
+    rerender(
+      <ConversationHeader conversation={conversa("open")} onBuscar={buscar} buscaAberta={false} />,
+    );
+    const botao = screen.getByRole("button", { name: "Buscar nesta conversa" });
+    expect(botao).toHaveAttribute("aria-expanded", "false");
+    await user.click(botao);
+    expect(buscar).toHaveBeenCalledOnce();
+    expect(closeMutate).not.toHaveBeenCalled();
+    expect(arquivarMutate).not.toHaveBeenCalled();
+  });
+});
+
+describe("ConversationHeader — dados do lead no cabeçalho", () => {
+  it("abre a ficha fora do menu e sem executar ações de atendimento", async () => {
     const user = userEvent.setup();
     const ficha = vi.fn();
-    const buscar = vi.fn();
-    render(
-      <ConversationHeader
-        conversation={conversa("open")}
-        onAbrirFicha={ficha}
-        onBuscar={buscar}
-        buscaAberta={false}
-      />,
-    );
+    render(<ConversationHeader conversation={conversa("open")} onAbrirFicha={ficha} />);
     const abrirFicha = screen.getByRole("button", { name: "Dados do lead" });
     expect(abrirFicha).toHaveTextContent("Dados do lead");
     expect(abrirFicha.closest(".crm-conversation-menu")).toBeNull();
     await user.click(abrirFicha);
     expect(ficha).toHaveBeenCalledOnce();
-    await user.click(screen.getByRole("button", { name: "Buscar nesta conversa" }));
-    expect(buscar).toHaveBeenCalledOnce();
     expect(closeMutate).not.toHaveBeenCalled();
     expect(arquivarMutate).not.toHaveBeenCalled();
   });

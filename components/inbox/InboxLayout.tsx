@@ -193,8 +193,18 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setFichaAberta(true);
   }, []);
-  const [buscaAberta, setBuscaAberta] = useState(false);
-  const [buscaMensagem, setBuscaMensagem] = useState("");
+  /**
+   * A busca dentro da conversa (#1793) pertence à CONVERSA em que foi aberta.
+   * Guardar o id junto fecha a busca em qualquer troca — clique, atalho j/k,
+   * voltar do navegador — sem que cada caminho precise lembrar de limpá-la.
+   */
+  const [busca, setBusca] = useState<{ conversaId: string; termo: string } | null>(null);
+  const buscaAberta = busca !== null && busca.conversaId === selectedId;
+  const botaoBuscaRef = useRef<HTMLButtonElement | null>(null);
+  const fecharBusca = useCallback(() => {
+    setBusca(null);
+    botaoBuscaRef.current?.focus();
+  }, []);
   /**
    * A mensagem escolhida para responder "em cima".
    *
@@ -319,8 +329,6 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
   const handleSelect = useCallback(
     (id: string | null) => {
       setFichaAberta(false);
-      setBuscaAberta(false);
-      setBuscaMensagem("");
       if (id === selectedId) return;
       setSelectedId(id);
       // Sem isto, escolher "responder" numa conversa e trocar para outra levaria
@@ -536,34 +544,34 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
                 conversation={selectedConversation}
                 onAbrirConversa={handleSelect}
                 onAbrirFicha={abrirFicha}
-                onBuscar={() => setBuscaAberta((v) => !v)}
+                onBuscar={() =>
+                  buscaAberta
+                    ? fecharBusca()
+                    : setBusca({ conversaId: selectedConversation.id, termo: "" })
+                }
                 buscaAberta={buscaAberta}
+                botaoBuscaRef={botaoBuscaRef}
               />
               {buscaAberta && (
                 <div className="crm-message-search flex items-center gap-2 border-b bg-background px-4 py-2">
                   <MagnifyingGlass size={18} aria-hidden />
                   <input
+                    type="search"
                     autoFocus
                     className="min-w-0 flex-1 bg-transparent py-1 text-sm outline-hidden"
                     aria-label={t("Buscar nas mensagens carregadas")}
                     placeholder={t("Buscar nas mensagens carregadas")}
-                    value={buscaMensagem}
-                    onChange={(e) => setBuscaMensagem(e.target.value)}
+                    value={busca.termo}
+                    onChange={(e) => setBusca({ conversaId: busca.conversaId, termo: e.target.value })}
                     onKeyDown={(e) => {
-                      if (e.key === "Escape") {
-                        setBuscaAberta(false);
-                        setBuscaMensagem("");
-                      }
+                      if (e.key === "Escape") fecharBusca();
                     }}
                   />
                   <Button
                     variant="ghost"
                     size="icon"
                     aria-label={t("Fechar busca")}
-                    onClick={() => {
-                      setBuscaAberta(false);
-                      setBuscaMensagem("");
-                    }}
+                    onClick={fecharBusca}
                   >
                     <X size={18} />
                   </Button>
@@ -572,7 +580,7 @@ export function InboxLayout({ initialSelectedId = null, rascunho = null }: Inbox
               <div className="min-h-0 flex-1 overflow-hidden">
                 <ChatThread
                   conversationId={selectedConversation.id}
-                  searchTerm={buscaAberta ? buscaMensagem : ""}
+                  searchTerm={buscaAberta ? busca.termo : ""}
                   provider={selectedConversation.channel_sessions?.provider ?? null}
                   onResponder={setRespondendo}
                   // O cartão da passagem escolhe o gesto a partir de quem é o dono

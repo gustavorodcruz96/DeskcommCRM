@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type RefObject } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import Link from "next/link";
 import {
@@ -42,8 +42,14 @@ import { phoneForDisplay } from "@/lib/channels/phone-variants";
 interface Props {
   conversation: ConversationWithContact;
   onAbrirFicha?: () => void;
+  /**
+   * A busca DENTRO da conversa (#1793): abre um campo que filtra só as
+   * mensagens já carregadas. O ref devolve o foco a este botão quando o campo
+   * fecha — senão o Esc largava o foco no `body`.
+   */
   onBuscar?: () => void;
   buscaAberta?: boolean;
+  botaoBuscaRef?: RefObject<HTMLButtonElement | null>;
   /** Seleciona outra conversa no Inbox — a aba Número do Transferir abre a do outro número. */
   onAbrirConversa?: (id: string) => void;
 }
@@ -80,6 +86,7 @@ export function ConversationHeader({
   onAbrirFicha,
   onBuscar,
   buscaAberta,
+  botaoBuscaRef,
 }: Props) {
   const t = useT();
   const { user } = useAuth();
@@ -312,10 +319,12 @@ export function ConversationHeader({
           )}{" "}
           {onBuscar && (
             <Button
+              ref={botaoBuscaRef}
               size="icon"
               variant="ghost"
               onClick={onBuscar}
               aria-label={t("Buscar nesta conversa")}
+              title={t("Buscar nesta conversa")}
               aria-expanded={buscaAberta}
             >
               <MagnifyingGlass size={18} />
